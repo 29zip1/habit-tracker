@@ -12,6 +12,7 @@ import {
 import { CONFIG_PADRAO, type DataLocal, type OrigemRegistro, type Registro } from '../types';
 import { AvisoDesfazer } from '../components/AvisoDesfazer';
 import { Cabecalho } from '../components/Cabecalho';
+import { FaixaBackup } from '../components/FaixaBackup';
 import { FaixaDias } from '../components/FaixaDias';
 import { JanelaValor, type ConfigJanela } from '../components/JanelaValor';
 import { LinhaHabito, type ItemHabito } from '../components/LinhaHabito';
@@ -277,6 +278,8 @@ export default function Hoje({ irParaAjustes }: { irParaAjustes: () => void }) {
         </div>
       )}
 
+      <FaixaBackup />
+
       {resumo ? <Cabecalho resumo={resumo} nomesAParte={nomesAParte} /> : <div className="h-28" />}
 
       {faixa.length > 0 && (
@@ -298,6 +301,13 @@ export default function Hoje({ irParaAjustes }: { irParaAjustes: () => void }) {
               className="mt-3 h-11 rounded-full border-[1.5px] border-verde-texto bg-cartao px-5 text-[14px] font-semibold text-verde-texto"
             >
               Carregar hábitos de exemplo (Ajustes)
+            </button>
+            <button
+              type="button"
+              onClick={irParaAjustes}
+              className="mt-2 h-11 rounded-full border-0 bg-transparent px-5 text-[14px] font-semibold text-verde-texto underline"
+            >
+              Já tenho backup? Restaurar
             </button>
           </div>
         )}

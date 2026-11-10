@@ -1,6 +1,7 @@
 import Dexie, { type EntityTable } from 'dexie';
 import type {
   ConfigApp,
+  Copia,
   Dia,
   Habito,
   Marcacao,
@@ -25,6 +26,7 @@ export class BancoHabitos extends Dexie {
   dias!: EntityTable<Dia, 'data'>;
   config!: EntityTable<ConfigApp, 'id'>;
   meta!: EntityTable<MetaBanco, 'chave'>;
+  copias!: EntityTable<Copia, 'id'>;
 
   constructor(nome = 'habit-tracker') {
     super(nome);
@@ -43,6 +45,19 @@ export class BancoHabitos extends Dexie {
       dias: 'data',
       config: 'id',
       meta: 'chave',
+    });
+
+    // Versão 3 (Fase 4): só ACRESCENTA a tabela das cópias automáticas (RF-69).
+    this.version(3).stores({
+      teste: 'id',
+      habitos: 'id, status, ordem',
+      versoes: 'id, habitoId, [habitoId+vigenteDesde]',
+      registros: 'id, habitoId, data, [habitoId+data]',
+      marcacoes: 'id, data, &[habitoId+data]',
+      dias: 'data',
+      config: 'id',
+      meta: 'chave',
+      copias: 'id, criadaEm, motivo',
     });
   }
 }

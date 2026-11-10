@@ -1,17 +1,24 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { TriangleAlert } from 'lucide-react';
 import { NavInferior, type Aba } from './components/NavInferior';
+import { TelaFalhaBanco } from './components/TelaFalhaBanco';
+import { db } from './database/db';
+import { abrirBancoComSeguranca } from './database/iniciar';
 import { useAtualizacao } from './hooks/useAtualizacao';
+import { useCopiaDiaria } from './hooks/useCopiaDiaria';
 import { useTema } from './hooks/useTema';
+import { dataLogica } from './services/datas';
 import { estaInstalado } from './services/ambiente';
+import type { ArquivoBackup } from './services/backup';
 import Ajustes from './screens/Ajustes';
 import EmBreve from './screens/EmBreve';
 import Hoje from './screens/Hoje';
 
-export default function App() {
+function AppPronto() {
   const [aba, setAba] = useState<Aba>('hoje');
   const atualizacao = useAtualizacao();
   useTema();
+  useCopiaDiaria();
   const instalado = estaInstalado();
 
   return (
@@ -31,10 +38,13 @@ export default function App() {
 
       {atualizacao.novaVersao && (
         <div className="mx-4 mt-2 flex shrink-0 items-center justify-between gap-3 rounded-2xl bg-aviso p-3 pl-4 text-aviso-texto">
-          <span className="text-[14px]">Nova versão disponível</span>
+          <span className="text-[14px]">
+            Nova versão disponível
+            <span className="block text-[12px] opacity-80">Uma cópia dos seus dados é guardada antes. Se quiser, salve também um backup em Ajustes.</span>
+          </span>
           <button
             type="button"
-            className="h-11 rounded-full px-4 text-[14px] font-bold text-aviso-desfazer"
+            className="h-11 shrink-0 rounded-full px-4 text-[14px] font-bold text-aviso-desfazer"
             onClick={() => void atualizacao.atualizar()}
           >
             Atualizar
@@ -53,4 +63,40 @@ export default function App() {
       <NavInferior ativa={aba} aoEscolher={setAba} />
     </div>
   );
+}
+
+type Abertura = { estado: 'abrindo' } | { estado: 'ok' } | { estado: 'falha'; erro: string; dadosLegados: ArquivoBackup | null };
+
+/** Abre o banco com proteção antes de mostrar qualquer tela (RF-63, RF-71). */
+export default function App() {
+  const [abertura, setAbertura] = useState<Abertura>({ estado: 'abrindo' });
+
+  const abrir = useCallback(async () => {
+    setAbertura({ estado: 'abrindo' });
+    const r = await abrirBancoComSeguranca(db, __APP_VERSION__, dataLogica(new Date(), 0));
+    setAbertura(r.ok ? { estado: 'ok' } : { estado: 'falha', erro: r.erro, dadosLegados: r.dadosLegados });
+  }, []);
+
+  useEffect(() => {
+    void abrir();
+  }, [abrir]);
+
+  if (abertura.estado === 'abrindo') {
+    return (
+      <div className="flex h-full items-center justify-center bg-fundo text-[15px] text-texto2" role="status">
+        Abrindo seus dados…
+      </div>
+    );
+  }
+  if (abertura.estado === 'falha') {
+    return (
+      <TelaFalhaBanco
+        erro={abertura.erro}
+        dadosLegados={abertura.dadosLegados}
+        aoTentarDeNovo={() => void abrir()}
+        aoRecuperar={() => void abrir()}
+      />
+    );
+  }
+  return <AppPronto />;
 }

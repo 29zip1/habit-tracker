@@ -7,6 +7,8 @@ import { CONFIG_PADRAO } from '../types';
 import { estaInstalado, lerArmazenamento, type StatusArmazenamento } from '../services/ambiente';
 import { salvarArquivoTeste, type TipoTeste } from '../services/arquivoTeste';
 import { carregarExemplos } from '../services/exemplos';
+import { criarCopiaDeSeguranca } from '../database/copias';
+import { SecaoBackup } from '../components/SecaoBackup';
 import { useLive } from '../hooks/useLive';
 import type { useAtualizacao } from '../hooks/useAtualizacao';
 
@@ -62,6 +64,9 @@ export default function Ajustes({ atualizacao }: { atualizacao: ReturnType<typeo
   }
 
   async function removerExemplos() {
+    // RF-65/RF-69: antes de excluir, guarda uma cópia dos dados.
+    const cfg = await operacoes.lerConfig();
+    await criarCopiaDeSeguranca(db, 'antes-excluir', __APP_VERSION__, dataLogica(new Date(), cfg.inicioDoDiaHora));
     const r = await operacoes.removerExemplos();
     setConfirmandoRemocao(false);
     setMsgExemplo(`Removidos ${r.habitos} hábitos de exemplo e ${r.registros} registros deles.`);
@@ -83,6 +88,8 @@ export default function Ajustes({ atualizacao }: { atualizacao: ReturnType<typeo
     >
       <div className="mx-auto flex max-w-[480px] flex-col gap-4">
         <h1 className="text-[28px] font-bold leading-tight">Ajustes</h1>
+
+        <SecaoBackup />
 
         <section className={cartao} aria-labelledby="t-ex">
           <h2 id="t-ex" className="text-[16px] font-semibold">

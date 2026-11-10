@@ -90,6 +90,28 @@ export interface MetaBanco {
   valor: string | number;
 }
 
+export type MotivoCopia =
+  | 'diaria'
+  | 'antes-restaurar'
+  | 'antes-atualizar'
+  | 'antes-migrar'
+  | 'antes-excluir';
+
+/** Cópia automática interna (RF-69). Fica no iPhone, junto com os dados. */
+export interface Copia {
+  id: string;
+  criadaEm: string;
+  data: DataLocal;
+  motivo: MotivoCopia;
+  habitos: number;
+  registros: number;
+  integridade: string;
+  /** O arquivo de backup completo, em texto JSON. */
+  conteudo: string;
+  /** Cópias de segurança (antes de restaurar, atualizar...) ficam até esta data. */
+  protegidaAte?: string;
+}
+
 export const CONFIG_PADRAO: ConfigApp = {
   id: 'config',
   tema: 'sistema',
@@ -99,4 +121,4 @@ export const CONFIG_PADRAO: ConfigApp = {
   avisoBackupDias: 7,
 };
 
-export const VERSAO_FORMATO_BANCO = 2;
+export const VERSAO_FORMATO_BANCO = 3;

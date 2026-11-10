@@ -43,12 +43,12 @@ describe('T-66 · migração do banco (v1 -> v2) não perde dados', () => {
     // Abre com o app novo (versão 2).
     const { db } = novoBanco(nome);
     await db.open();
-    expect(db.verno).toBe(2);
+    expect(db.verno).toBe(3);
     const contador = await db.teste.get('contador');
     expect(contador?.valor).toBe(7);
     expect(await db.habitos.count()).toBe(0);
     expect(db.tables.map((t) => t.name).sort()).toEqual(
-      ['config', 'dias', 'habitos', 'marcacoes', 'meta', 'registros', 'teste', 'versoes'],
+      ['config', 'copias', 'dias', 'habitos', 'marcacoes', 'meta', 'registros', 'teste', 'versoes'],
     );
   });
 
@@ -268,7 +268,7 @@ describe('dia, configurações e metadados', () => {
     await ops.garantirMeta();
     const criado = (await db.meta.get('criadoEm'))?.valor;
     expect(criado).toBeTruthy();
-    expect((await db.meta.get('versaoFormato'))?.valor).toBe(2);
+    expect((await db.meta.get('versaoFormato'))?.valor).toBe(3);
     await ops.garantirMeta(); // de novo não muda a data de criação
     expect((await db.meta.get('criadoEm'))?.valor).toBe(criado);
   });
