@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useAreaVisivel } from '../hooks/useAreaVisivel';
 
 export const LIMITE_NOTA = 280;
 
@@ -15,11 +16,13 @@ export function NotaDia({
   aoCancelar: () => void;
 }) {
   const [texto, setTexto] = useState(inicial);
+  const area = useAreaVisivel();
   const restantes = LIMITE_NOTA - texto.length;
 
   return (
     <div
-      className="fixed inset-0 z-40 flex flex-col justify-end bg-[rgba(27,31,29,0.45)]"
+      className={`fixed left-0 right-0 z-40 flex flex-col justify-end bg-[rgba(27,31,29,0.45)] ${area ? '' : 'inset-0'}`}
+      style={area ? { top: area.top, height: area.height } : undefined}
       onClick={(e) => {
         if (e.target === e.currentTarget) aoCancelar();
       }}
@@ -28,8 +31,8 @@ export function NotaDia({
         role="dialog"
         aria-modal="true"
         aria-label={titulo}
-        className="mx-auto flex w-full max-w-[480px] flex-col gap-3 rounded-t-3xl bg-cartao px-5 pt-5"
-        style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 24px)' }}
+        className="mx-auto flex max-h-full w-full max-w-[480px] flex-col gap-3 overflow-y-auto rounded-t-3xl bg-cartao px-5 pt-5"
+        style={{ paddingBottom: area?.tecladoAberto ? '12px' : 'max(env(safe-area-inset-bottom), 24px)' }}
       >
         <div className="text-[18px] font-bold">{titulo}</div>
         <textarea

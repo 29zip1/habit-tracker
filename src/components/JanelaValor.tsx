@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useAreaVisivel } from '../hooks/useAreaVisivel';
 import { arredondar } from '../services/calculos';
 import { formatarNumero } from '../services/textos';
 
@@ -36,6 +37,7 @@ export function JanelaValor({ config, aoConfirmar, aoCancelar }: Props) {
   const [texto, setTexto] = useState(config.valorInicial === null ? '' : String(config.valorInicial).replace('.', ','));
   const [horario, setHorario] = useState(config.horarioInicial ?? '');
   const abertaEm = useRef(Date.now());
+  const area = useAreaVisivel();
 
   useEffect(() => {
     abertaEm.current = Date.now();
@@ -64,7 +66,8 @@ export function JanelaValor({ config, aoConfirmar, aoCancelar }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-40 flex flex-col justify-end bg-[rgba(27,31,29,0.45)]"
+      className={`fixed left-0 right-0 z-40 flex flex-col justify-end bg-[rgba(27,31,29,0.45)] ${area ? '' : 'inset-0'}`}
+      style={area ? { top: area.top, height: area.height } : undefined}
       onClick={(e) => {
         if (e.target === e.currentTarget) fora();
       }}
@@ -73,8 +76,8 @@ export function JanelaValor({ config, aoConfirmar, aoCancelar }: Props) {
         role="dialog"
         aria-modal="true"
         aria-label={config.titulo}
-        className="mx-auto flex w-full max-w-[480px] flex-col gap-4 rounded-t-3xl bg-cartao px-5 pt-5"
-        style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 24px)' }}
+        className="mx-auto flex max-h-full w-full max-w-[480px] flex-col gap-4 overflow-y-auto rounded-t-3xl bg-cartao px-5 pt-5"
+        style={{ paddingBottom: area?.tecladoAberto ? '12px' : 'max(env(safe-area-inset-bottom), 24px)' }}
       >
         <div className="flex flex-col gap-1">
           <div className="text-[18px] font-bold">{config.titulo}</div>
