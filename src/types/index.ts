@@ -1,0 +1,100 @@
+// Modelo de dados do Habit Tracker (seção 4 da especificação).
+// Datas são sempre texto local "AAAA-MM-DD", nunca UTC.
+
+export type DataLocal = string;
+
+export type TipoHabito = 'conclusao' | 'quantidade' | 'limite' | 'semanal';
+
+/** dias: 0 = domingo ... 6 = sábado (igual ao Date.getDay). */
+export type Frequencia = { tipo: 'todos' } | { tipo: 'dias'; dias: number[] };
+
+export interface Habito {
+  id: string;
+  nome: string;
+  descricao?: string;
+  icone: string;
+  cor: string;
+  categoria: string;
+  ordem: number;
+  status: 'ativo' | 'arquivado';
+  dataInicial?: DataLocal;
+  dataFinal?: DataLocal;
+  /** A partir desta data o hábito deixa de aparecer. O passado continua contando. */
+  arquivadoEm?: DataLocal;
+  criadoEm: string;
+  editadoEm: string;
+}
+
+/** Configuração do hábito a partir de uma data (RF-C7: nunca altera o passado). */
+export interface VersaoHabito {
+  id: string;
+  habitoId: string;
+  vigenteDesde: DataLocal;
+  tipo: TipoHabito;
+  unidade: string;
+  /** Meta diária (quantidade), limite diário (limite) ou vezes por semana (semanal). */
+  meta: number;
+  /** De 1 a 3 valores dos botões rápidos (só quantidade e limite). */
+  blocos: number[];
+  frequencia: Frequencia;
+  entraNoPercentual: boolean;
+  /** Passo dos botões − e + da janela de valor. */
+  passoAjuste: number;
+}
+
+export type OrigemRegistro = 'bloco' | 'digitado' | 'manual';
+
+export interface Registro {
+  id: string;
+  habitoId: string;
+  valor: number;
+  data: DataLocal;
+  /** "HH:MM", horário local. */
+  horario: string;
+  origem: OrigemRegistro;
+  criadoEm: string;
+  editadoEm: string;
+}
+
+/** Conclusão de um hábito sim/não ou semanal (no máximo uma por hábito por dia). */
+export interface Marcacao {
+  id: string;
+  habitoId: string;
+  data: DataLocal;
+  criadoEm: string;
+}
+
+export interface Dia {
+  data: DataLocal;
+  fechado: boolean;
+  folga: boolean;
+  nota?: string;
+}
+
+export interface ConfigApp {
+  id: 'config';
+  tema: 'sistema' | 'claro' | 'escuro';
+  /** Hora em que o dia vira (0 a 5). Padrão 0 (meia-noite). */
+  inicioDoDiaHora: number;
+  /** 0 = domingo ... 6 = sábado. Padrão 1 (segunda). */
+  inicioSemana: number;
+  dicaVisivel: boolean;
+  avisoBackupDias: number;
+  ultimoBackup?: string;
+}
+
+export interface MetaBanco {
+  chave: string;
+  valor: string | number;
+}
+
+export const CONFIG_PADRAO: ConfigApp = {
+  id: 'config',
+  tema: 'sistema',
+  inicioDoDiaHora: 0,
+  inicioSemana: 1,
+  dicaVisivel: true,
+  avisoBackupDias: 7,
+};
+
+export const VERSAO_FORMATO_BANCO = 2;

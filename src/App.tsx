@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { registerSW } from 'virtual:pwa-register';
 import { Check, Download, RefreshCw, Smartphone, TriangleAlert } from 'lucide-react';
-import { lerContador, somarContador, type DadoTeste } from './database/db';
+import { db, lerContador, somarContador, type DadoTeste } from './database/db';
+import { operacoes } from './database/operacoes';
 import { estaInstalado, lerArmazenamento, type StatusArmazenamento } from './services/ambiente';
 import { salvarArquivoTeste, type TipoTeste } from './services/arquivoTeste';
 
@@ -18,6 +19,7 @@ export default function App() {
   const [mostrarComoInstalar, setMostrarComoInstalar] = useState(false);
   const [novaVersao, setNovaVersao] = useState(false);
   const [offlinePronto, setOfflinePronto] = useState(false);
+  const [bancoInfo, setBancoInfo] = useState('Verificando…');
   const [msgAtualizacao, setMsgAtualizacao] = useState('');
   const [msgArquivo, setMsgArquivo] = useState('');
   const atualizarRef = useRef<((recarregar?: boolean) => Promise<void>) | null>(null);
@@ -25,6 +27,15 @@ export default function App() {
   useEffect(() => {
     void lerContador().then(setDado);
     void lerArmazenamento().then(setArmaz);
+    void (async () => {
+      try {
+        await operacoes.garantirMeta();
+        const [h, r] = await Promise.all([db.habitos.count(), db.registros.count()]);
+        setBancoInfo(`formato ${db.verno} · ${h} hábitos · ${r} registros`);
+      } catch {
+        setBancoInfo('não foi possível abrir o banco');
+      }
+    })();
     atualizarRef.current = registerSW({
       onNeedRefresh: () => setNovaVersao(true),
       onOfflineReady: () => setOfflinePronto(true),
@@ -78,7 +89,7 @@ export default function App() {
     >
       <header>
         <div className="text-[13px] font-semibold tracking-wider text-[#5B6560]">
-          FASE 1 · APP DE TESTE
+          FASE 2 · APP DE TESTE
         </div>
         <h1 className="text-[28px] font-bold leading-tight">Habit Tracker</h1>
       </header>
@@ -139,6 +150,9 @@ export default function App() {
           <li>
             Espaço usado:{' '}
             <strong>{armaz?.usadoKB === null || !armaz ? 'não informado' : `${armaz.usadoKB} KB`}</strong>
+          </li>
+          <li>
+            Banco de dados: <strong>{bancoInfo}</strong>
           </li>
           <li className="flex items-center gap-2">
             <Check size={18} aria-hidden="true" />
