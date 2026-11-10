@@ -1,0 +1,26 @@
+# === NUNCA PUBLICAR (dados e documentos pessoais) ===
+privado/
+docs/
+CLAUDE.md
+.claude/
+
+# Backups e exportações
+backups/
+*backup*.json
+*.csv
+*.hbk
+
+# === Arquivos gerados / dependências ===
+node_modules/
+dist/
+dev-dist/
+coverage/
+test-results/
+playwright-report/
+*.log
+
+# === Ambiente e sistema ===
+.env
+.env.*
+.DS_Store
+Thumbs.db

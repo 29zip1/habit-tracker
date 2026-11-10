@@ -1,0 +1,24 @@
+@import 'tailwindcss';
+
+:root {
+  --verde: #0b7a43;
+  --verde-claro: #e8f3ec;
+  --texto: #1b1f1d;
+  --texto-2: #5b6560;
+  --fundo: #f7f8f6;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--fundo);
+  color: var(--texto);
+  /* Fonte do sistema: nada é carregado da internet (RF-80). */
+  font-family: -apple-system, system-ui, 'Segoe UI', Roboto, sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+
+button {
+  font-family: inherit;
+  touch-action: manipulation;
+}
