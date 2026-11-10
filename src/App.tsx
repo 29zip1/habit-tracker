@@ -191,8 +191,8 @@ export default function App() {
       {mostrarComoInstalar && (
         <ol className={`${cartao} list-decimal space-y-2 pl-8 text-[15px]`}>
           <li>Abra este endereço no <strong>Safari</strong> (não use outro navegador).</li>
-          <li>Toque no botão <strong>Compartilhar</strong> (quadrado com seta para cima).</li>
-          <li>Toque em <strong>Adicionar à Tela de Início</strong>.</li>
+          <li>Na barra do Safari, toque nos três pontinhos <strong>(⋯)</strong> para abrir o menu.</li>
+          <li>Toque em <strong>Adicionar à Tela de Início</strong>. Se não estiver no menu, toque em <strong>Compartilhar</strong> e role a lista até achar essa opção.</li>
           <li>Deixe ativada a opção <strong>Abrir como app web</strong> e toque em <strong>Adicionar</strong>.</li>
           <li>
             Abra sempre pelo <strong>ícone</strong> novo. Se apagar o ícone, os dados do app são
