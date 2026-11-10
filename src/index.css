@@ -28,6 +28,12 @@
   --color-aviso-desfazer: #8fe0b2;
 }
 
+/* Espaço no topo: área segura do iPhone (relógio/Dynamic Island) + folga para
+   o desfoque que o iOS aplica logo abaixo da barra de status. */
+:root {
+  --topo-seguro: calc(env(safe-area-inset-top, 0px) + 28px);
+}
+
 html,
 body,
 #root {

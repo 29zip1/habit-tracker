@@ -79,7 +79,7 @@ export default function Ajustes({ atualizacao }: { atualizacao: ReturnType<typeo
   return (
     <div
       className="h-full overflow-y-auto px-4 pb-8"
-      style={{ paddingTop: 'max(env(safe-area-inset-top), 16px)' }}
+      style={{ paddingTop: 'var(--topo-seguro)' }}
     >
       <div className="mx-auto flex max-w-[480px] flex-col gap-4">
         <h1 className="text-[28px] font-bold leading-tight">Ajustes</h1>

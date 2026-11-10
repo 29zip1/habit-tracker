@@ -261,7 +261,7 @@ export default function Hoje({ irParaAjustes }: { irParaAjustes: () => void }) {
   const nota = entrada?.dia?.nota ?? '';
 
   return (
-    <div className="h-full overflow-y-auto pb-28" style={{ paddingTop: 'max(env(safe-area-inset-top), 16px)' }}>
+    <div className="h-full overflow-y-auto pb-28" style={{ paddingTop: 'var(--topo-seguro)' }}>
       {!ehHoje && (
         <div className="mx-4 mb-3 flex items-center justify-between rounded-2xl bg-verde-claro px-4 py-2 text-[14px]">
           <span>

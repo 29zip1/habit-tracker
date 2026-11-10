@@ -18,7 +18,7 @@ export default function App() {
         <div
           role="alert"
           className="mx-4 mt-2 flex shrink-0 gap-3 rounded-2xl border border-laranja bg-laranja-claro p-3 text-[14px] text-[#7C3A06]"
-          style={{ marginTop: 'max(env(safe-area-inset-top), 8px)' }}
+          style={{ marginTop: 'var(--topo-seguro)' }}
         >
           <TriangleAlert className="mt-0.5 shrink-0" size={18} aria-hidden="true" />
           <div>
