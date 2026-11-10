@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { TriangleAlert } from 'lucide-react';
 import { NavInferior, type Aba } from './components/NavInferior';
 import { useAtualizacao } from './hooks/useAtualizacao';
+import { useTema } from './hooks/useTema';
 import { estaInstalado } from './services/ambiente';
 import Ajustes from './screens/Ajustes';
 import EmBreve from './screens/EmBreve';
@@ -10,6 +11,7 @@ import Hoje from './screens/Hoje';
 export default function App() {
   const [aba, setAba] = useState<Aba>('hoje');
   const atualizacao = useAtualizacao();
+  useTema();
   const instalado = estaInstalado();
 
   return (
@@ -17,7 +19,7 @@ export default function App() {
       {!instalado && (
         <div
           role="alert"
-          className="mx-4 mt-2 flex shrink-0 gap-3 rounded-2xl border border-laranja bg-laranja-claro p-3 text-[14px] text-[#7C3A06]"
+          className="mx-4 mt-2 flex shrink-0 gap-3 rounded-2xl border border-laranja bg-laranja-claro p-3 text-[14px] text-laranja-texto"
           style={{ marginTop: 'var(--topo-seguro)' }}
         >
           <TriangleAlert className="mt-0.5 shrink-0" size={18} aria-hidden="true" />
@@ -28,7 +30,7 @@ export default function App() {
       )}
 
       {atualizacao.novaVersao && (
-        <div className="mx-4 mt-2 flex shrink-0 items-center justify-between gap-3 rounded-2xl bg-aviso p-3 pl-4 text-white">
+        <div className="mx-4 mt-2 flex shrink-0 items-center justify-between gap-3 rounded-2xl bg-aviso p-3 pl-4 text-aviso-texto">
           <span className="text-[14px]">Nova versão disponível</span>
           <button
             type="button"

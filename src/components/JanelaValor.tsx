@@ -89,7 +89,7 @@ export function JanelaValor({ config, aoConfirmar, aoCancelar }: Props) {
             type="button"
             aria-label="Diminuir"
             onClick={() => ajustar(-config.passo)}
-            className="size-12 rounded-full border-[1.5px] border-borda-bloco bg-cartao p-0 text-[24px] font-semibold text-verde"
+            className="size-12 rounded-full border-[1.5px] border-borda-bloco bg-cartao p-0 text-[24px] font-semibold text-verde-texto"
           >
             −
           </button>
@@ -107,7 +107,7 @@ export function JanelaValor({ config, aoConfirmar, aoCancelar }: Props) {
             type="button"
             aria-label="Aumentar"
             onClick={() => ajustar(config.passo)}
-            className="size-12 rounded-full border-[1.5px] border-borda-bloco bg-cartao p-0 text-[24px] font-semibold text-verde"
+            className="size-12 rounded-full border-[1.5px] border-borda-bloco bg-cartao p-0 text-[24px] font-semibold text-verde-texto"
           >
             +
           </button>

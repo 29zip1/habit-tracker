@@ -57,7 +57,7 @@ export function PainelRegistros({
                 type="button"
                 aria-label={`Corrigir registro das ${r.horario}`}
                 onClick={() => aoCorrigir(r)}
-                className="h-11 rounded-full border-[1.5px] border-borda-bloco bg-cartao px-3.5 text-[14px] font-semibold text-verde"
+                className="h-11 rounded-full border-[1.5px] border-borda-bloco bg-cartao px-3.5 text-[14px] font-semibold text-verde-texto"
               >
                 Corrigir
               </button>
@@ -77,7 +77,7 @@ export function PainelRegistros({
           <button
             type="button"
             onClick={aoRegistroManual}
-            className="h-12 flex-1 rounded-full border-[1.5px] border-verde bg-cartao text-[15px] font-semibold text-verde"
+            className="h-12 flex-1 rounded-full border-[1.5px] border-verde-texto bg-cartao text-[15px] font-semibold text-verde-texto"
           >
             + Registro manual
           </button>

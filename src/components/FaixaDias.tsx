@@ -6,13 +6,13 @@ function Indicador({ r, ehHoje }: { r: ResumoDia; ehHoje: boolean }) {
   // Sempre por FORMA, nunca só por cor (RF-03, RF-24).
   switch (r.estado) {
     case 'completo':
-      return <span aria-hidden="true" className="size-3.5 rounded-full bg-verde" />;
+      return <span aria-hidden="true" className="size-3.5 rounded-full bg-verde-barra" />;
     case 'parcial':
       return (
         <span
           aria-hidden="true"
-          className="box-border size-3.5 rounded-full border-2 border-verde"
-          style={{ background: 'linear-gradient(90deg, var(--color-verde) 50%, transparent 50%)' }}
+          className="box-border size-3.5 rounded-full border-2 border-verde-texto"
+          style={{ background: 'linear-gradient(90deg, var(--color-verde-texto) 50%, transparent 50%)' }}
         />
       );
     case 'folga':
@@ -28,7 +28,7 @@ function Indicador({ r, ehHoje }: { r: ResumoDia; ehHoje: boolean }) {
       return <span aria-hidden="true" className="size-3.5" />;
     default: // sem dados: hoje = anel vazio; outros dias = círculo tracejado
       return ehHoje ? (
-        <span aria-hidden="true" className="box-border size-3.5 rounded-full border-2 border-verde" />
+        <span aria-hidden="true" className="box-border size-3.5 rounded-full border-2 border-verde-texto" />
       ) : (
         <span aria-hidden="true" className="box-border size-3.5 rounded-full border-2 border-dashed border-cinza-anel" />
       );
@@ -59,7 +59,7 @@ export function FaixaDias({ dias, hoje, selecionada, aoSelecionar }: Props) {
             aria-pressed={ativa}
             onClick={() => aoSelecionar(r.data)}
             className={`flex h-16 w-12 flex-col items-center justify-center gap-1 p-0 ${
-              ativa ? 'rounded-2xl border-[1.5px] border-verde bg-cartao text-verde' : 'border-0 bg-transparent text-texto2'
+              ativa ? 'rounded-2xl border-[1.5px] border-verde-texto bg-cartao text-verde-texto' : 'border-0 bg-transparent text-texto2'
             }`}
           >
             <span className={`text-[12px] ${ativa || ehHoje ? 'font-semibold' : ''}`}>{rotuloDia}</span>

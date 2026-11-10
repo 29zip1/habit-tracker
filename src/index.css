@@ -9,7 +9,12 @@
   --color-linha: #e9ecea;
   --color-texto: #1b1f1d;
   --color-texto2: #5b6560;
+  /* verde = preenchimentos com texto branco (check, botões);
+     verde-texto = textos e bordas; verde-barra = barras e indicadores.
+     No claro são iguais; no escuro os dois últimos ficam mais claros. */
   --color-verde: #0b7a43;
+  --color-verde-texto: #0b7a43;
+  --color-verde-barra: #0b7a43;
   --color-verde-claro: #e8f3ec;
   --color-verde-linha: #e4f2e9;
   --color-verde-borda: #d2e6d9;
@@ -19,13 +24,45 @@
   --color-ouro: #f5b301;
   --color-laranja: #b45309;
   --color-laranja-claro: #fff7ed;
+  --color-laranja-texto: #7c3a06;
   --color-cinza-anel: #8a948f;
   --color-borda-bloco: #b7d4c1;
   --color-chip: #e6eae7;
   --color-chip-texto: #3f4a44;
   --color-vermelho: #b42318;
   --color-aviso: #1b1f1d;
+  --color-aviso-texto: #ffffff;
   --color-aviso-desfazer: #8fe0b2;
+}
+
+/* Modo escuro (paleta aprovada em 10/11/2026). Só troca os valores acima. */
+:root[data-tema='escuro'] {
+  color-scheme: dark;
+  --color-fundo: #101412;
+  --color-cartao: #1a201c;
+  --color-borda: #2b332e;
+  --color-linha: #262d29;
+  --color-texto: #edf1ee;
+  --color-texto2: #a6b0aa;
+  --color-verde-texto: #52c98b;
+  --color-verde-barra: #52c98b;
+  --color-verde-claro: #1f3a2c;
+  --color-verde-linha: #163024;
+  --color-verde-borda: #24412f;
+  --color-verde-escuro: #7be0a9;
+  --color-trilho: #2f3833;
+  --color-trilho-ok: #2e5440;
+  --color-laranja: #f59e4b;
+  --color-laranja-claro: #3a2a18;
+  --color-laranja-texto: #f5c089;
+  --color-cinza-anel: #7c8882;
+  --color-borda-bloco: #52c98b;
+  --color-chip: #2a332e;
+  --color-chip-texto: #c8d1cc;
+  --color-vermelho: #ff7a6b;
+  --color-aviso: #e8edea;
+  --color-aviso-texto: #101412;
+  --color-aviso-desfazer: #0b7a43;
 }
 
 /* Espaço no topo: área segura do iPhone (relógio/Dynamic Island) + folga para
@@ -38,6 +75,10 @@ html,
 body,
 #root {
   height: 100%;
+}
+
+:root {
+  color-scheme: light;
 }
 
 html,

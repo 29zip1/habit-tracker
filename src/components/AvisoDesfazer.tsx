@@ -7,7 +7,7 @@ export function AvisoDesfazer({ aviso, aoDesfazer }: { aviso: Aviso | null; aoDe
     <div
       role="status"
       aria-live="polite"
-      className={`fixed left-4 right-4 z-30 mx-auto flex max-w-[480px] items-center justify-between gap-2 rounded-[14px] py-1 pl-4 pr-1.5 text-white ${
+      className={`fixed left-4 right-4 z-30 mx-auto flex max-w-[480px] items-center justify-between gap-2 rounded-[14px] py-1 pl-4 pr-1.5 ${aviso.cruzou ? 'text-white' : 'text-aviso-texto'} ${
         aviso.cruzou ? 'bg-verde' : 'bg-aviso'
       }`}
       style={{ bottom: 'calc(max(env(safe-area-inset-bottom), 8px) + 72px)' }}

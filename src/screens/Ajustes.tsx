@@ -12,7 +12,7 @@ import type { useAtualizacao } from '../hooks/useAtualizacao';
 
 const botao = 'min-h-[48px] rounded-full px-5 text-[15px] font-semibold active:opacity-80';
 const botaoPrincipal = `${botao} bg-verde text-white`;
-const botaoContorno = `${botao} border-[1.5px] border-verde bg-cartao text-verde`;
+const botaoContorno = `${botao} border-[1.5px] border-verde-texto bg-cartao text-verde-texto`;
 const cartao = 'rounded-2xl border border-borda bg-cartao p-4';
 
 export default function Ajustes({ atualizacao }: { atualizacao: ReturnType<typeof useAtualizacao> }) {
@@ -122,7 +122,7 @@ export default function Ajustes({ atualizacao }: { atualizacao: ReturnType<typeo
                 <button type="button" className={botaoContorno} onClick={() => setConfirmandoRemocao(false)}>
                   Cancelar
                 </button>
-                <button type="button" className={`${botao} bg-vermelho text-white`} onClick={() => void removerExemplos()}>
+                <button type="button" className={`${botao} bg-vermelho text-aviso-texto`} onClick={() => void removerExemplos()}>
                   Apagar exemplos
                 </button>
               </div>
@@ -135,6 +135,30 @@ export default function Ajustes({ atualizacao }: { atualizacao: ReturnType<typeo
           <h2 id="t-tela" className="text-[16px] font-semibold">
             Tela Hoje
           </h2>
+          <div role="radiogroup" aria-label="Tema" className="mt-3 flex gap-2">
+            {(
+              [
+                ['sistema', 'Sistema'],
+                ['claro', 'Claro'],
+                ['escuro', 'Escuro'],
+              ] as const
+            ).map(([valor, rotulo]) => (
+              <button
+                key={valor}
+                type="button"
+                role="radio"
+                aria-checked={config.tema === valor}
+                onClick={() => void operacoes.salvarConfig({ tema: valor })}
+                className={`h-11 flex-1 rounded-full border-[1.5px] text-[14px] font-semibold ${
+                  config.tema === valor
+                    ? 'border-verde bg-verde text-white'
+                    : 'border-borda-bloco bg-cartao text-verde-texto'
+                }`}
+              >
+                {rotulo}
+              </button>
+            ))}
+          </div>
           <label className="mt-2 flex min-h-11 items-center justify-between gap-3 text-[15px]">
             <span>Mostrar a dica de uso embaixo da lista</span>
             <input

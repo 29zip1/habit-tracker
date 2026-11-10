@@ -29,7 +29,7 @@ export function NavInferior({ ativa, aoEscolher }: { ativa: Aba; aoEscolher: (ab
             aria-current={ativaAgora ? 'page' : undefined}
             onClick={() => aoEscolher(aba.id)}
             className={`flex h-[52px] flex-1 flex-col items-center justify-center gap-[3px] border-0 bg-transparent p-0 ${
-              ativaAgora ? 'text-verde' : 'text-texto2'
+              ativaAgora ? 'text-verde-texto' : 'text-texto2'
             }`}
           >
             <Icone size={22} strokeWidth={2} aria-hidden="true" />

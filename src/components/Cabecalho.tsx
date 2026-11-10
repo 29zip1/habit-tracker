@@ -33,7 +33,7 @@ export function Cabecalho({ resumo, nomesAParte }: { resumo: ResumoDia; nomesAPa
         aria-valuenow={pct ?? 0}
         aria-label="Progresso do dia"
       >
-        <div className="barra h-2 rounded bg-verde" style={{ width: `${pct ?? 0}%` }} />
+        <div className="barra h-2 rounded bg-verde-barra" style={{ width: `${pct ?? 0}%` }} />
       </div>
       <div className="mt-2 text-[13px] text-texto2">{textoConcluidas(resumo, nomesAParte)}</div>
     </header>

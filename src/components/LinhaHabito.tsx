@@ -68,7 +68,7 @@ function BotaoBloco({
       type="button"
       aria-label={aria}
       {...gestos}
-      className="sem-selecao h-11 min-w-[52px] rounded-full border-[1.5px] border-borda-bloco bg-cartao px-3 text-[14px] font-semibold text-verde"
+      className="sem-selecao h-11 min-w-[52px] rounded-full border-[1.5px] border-borda-bloco bg-cartao px-3 text-[14px] font-semibold text-verde-texto"
     >
       {rotulo}
     </button>
@@ -123,7 +123,7 @@ export function LinhaHabito({
 
   const icone = (
     <>
-      <IconeHabito nome={habito.icone} cor={feito ? '#FFFFFF' : 'var(--color-verde)'} />
+      <IconeHabito nome={habito.icone} cor={feito ? '#FFFFFF' : 'var(--color-verde-texto)'} />
     </>
   );
   const classeIcone = `flex size-10 shrink-0 items-center justify-center rounded-xl border-0 p-0 transition-colors duration-300 ${
@@ -144,7 +144,7 @@ export function LinhaHabito({
       </div>
       {temBarra && (
         <div className={`flex h-1.5 overflow-hidden rounded-[3px] ${feito ? 'bg-trilho-ok' : 'bg-trilho'}`}>
-          <div className="barra h-1.5 bg-verde" style={{ width: `${verdePct}%` }} />
+          <div className="barra h-1.5 bg-verde-barra" style={{ width: `${verdePct}%` }} />
           {limite && <div className="barra h-1.5 bg-laranja" style={{ width: `${laranjaPct}%` }} />}
         </div>
       )}

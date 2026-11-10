@@ -27,8 +27,8 @@ interface JanelaAberta extends ConfigJanela {
 }
 
 const botaoSecundario =
-  'h-11 rounded-full border-[1.5px] border-verde bg-transparent px-[22px] text-[14px] font-semibold text-verde';
-const botaoLink = 'h-11 rounded-full border-0 bg-transparent px-3 text-[14px] font-semibold text-verde underline';
+  'h-11 rounded-full border-[1.5px] border-verde-texto bg-transparent px-[22px] text-[14px] font-semibold text-verde-texto';
+const botaoLink = 'h-11 rounded-full border-0 bg-transparent px-3 text-[14px] font-semibold text-verde-texto underline';
 
 export default function Hoje({ irParaAjustes }: { irParaAjustes: () => void }) {
   const config = useLive(() => operacoes.lerConfig(), [], CONFIG_PADRAO);
@@ -270,7 +270,7 @@ export default function Hoje({ irParaAjustes }: { irParaAjustes: () => void }) {
           <button
             type="button"
             onClick={() => setEscolhida(null)}
-            className="h-11 rounded-full border-0 bg-transparent px-3 text-[14px] font-bold text-verde"
+            className="h-11 rounded-full border-0 bg-transparent px-3 text-[14px] font-bold text-verde-texto"
           >
             Voltar para hoje
           </button>
@@ -295,7 +295,7 @@ export default function Hoje({ irParaAjustes }: { irParaAjustes: () => void }) {
             <button
               type="button"
               onClick={irParaAjustes}
-              className="mt-3 h-11 rounded-full border-[1.5px] border-verde bg-cartao px-5 text-[14px] font-semibold text-verde"
+              className="mt-3 h-11 rounded-full border-[1.5px] border-verde-texto bg-cartao px-5 text-[14px] font-semibold text-verde-texto"
             >
               Carregar hábitos de exemplo (Ajustes)
             </button>

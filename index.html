@@ -13,6 +13,13 @@
     <meta name="apple-mobile-web-app-title" content="Habit Tracker" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <title>Habit Tracker</title>
+    <script>
+      try {
+        var t = localStorage.getItem('tema') || 'sistema';
+        var escuro = t === 'escuro' || (t === 'sistema' && matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.dataset.tema = escuro ? 'escuro' : 'claro';
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>
