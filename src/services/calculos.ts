@@ -50,6 +50,8 @@ export interface ResumoHabito {
   /** Quanto passou da meta (quantidade). 0 se não passou. */
   alemDaMeta: number;
   statusLimite: 'dentro' | 'acima' | null;
+  /** RF-14b: total exatamente igual ao valor proposto (check do hábito de limite). */
+  limiteAtingido: boolean;
   marcadoNoDia: boolean;
   contagemSemana: number | null;
   metaSemanaBatida: boolean | null;
@@ -125,6 +127,11 @@ export function statusDoLimite(total: number, limite: number): 'dentro' | 'acima
   return arredondar(total) <= limite ? 'dentro' : 'acima';
 }
 
+/** RF-14b: o check do limite só aparece quando o total é EXATAMENTE o valor proposto. */
+export function limiteAtingido(total: number, limite: number): boolean {
+  return arredondar(total) === arredondar(limite);
+}
+
 /**
  * RF-C1 e RF-C9: fração de um hábito para o percentual do dia.
  * Retorna null quando o hábito fica fora da conta (limite com dia aberto).
@@ -176,6 +183,7 @@ export function calcularDia(e: EntradaDia): ResumoDia {
       metaSuperada: false,
       alemDaMeta: 0,
       statusLimite: null,
+      limiteAtingido: false,
       marcadoNoDia: false,
       contagemSemana: null,
       metaSemanaBatida: null,
@@ -202,6 +210,7 @@ export function calcularDia(e: EntradaDia): ResumoDia {
     }
     if (v.tipo === 'limite') {
       r.statusLimite = statusDoLimite(total, v.meta);
+      r.limiteAtingido = limiteAtingido(total, v.meta);
     }
     if (v.tipo === 'semanal') {
       const datasMarcadas = new Set(

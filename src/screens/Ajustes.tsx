@@ -3,6 +3,7 @@ import { Check, Download, RefreshCw, Smartphone } from 'lucide-react';
 import { db, lerContador, somarContador, type DadoTeste } from '../database/db';
 import { operacoes } from '../database/operacoes';
 import { dataLogica } from '../services/datas';
+import { CONFIG_PADRAO } from '../types';
 import { estaInstalado, lerArmazenamento, type StatusArmazenamento } from '../services/ambiente';
 import { salvarArquivoTeste, type TipoTeste } from '../services/arquivoTeste';
 import { carregarExemplos } from '../services/exemplos';
@@ -24,6 +25,7 @@ export default function Ajustes({ atualizacao }: { atualizacao: ReturnType<typeo
   const [msgExemplo, setMsgExemplo] = useState('');
   const [confirmandoRemocao, setConfirmandoRemocao] = useState(false);
 
+  const config = useLive(() => operacoes.lerConfig(), [], CONFIG_PADRAO);
   const quantosExemplos = useLive(
     () => db.habitos.filter((h) => h.exemplo === true).count(),
     [],
@@ -127,6 +129,21 @@ export default function Ajustes({ atualizacao }: { atualizacao: ReturnType<typeo
             </div>
           )}
           {msgExemplo && <p className="mt-3 text-[14px]">{msgExemplo}</p>}
+        </section>
+
+        <section className={cartao} aria-labelledby="t-tela">
+          <h2 id="t-tela" className="text-[16px] font-semibold">
+            Tela Hoje
+          </h2>
+          <label className="mt-2 flex min-h-11 items-center justify-between gap-3 text-[15px]">
+            <span>Mostrar a dica de uso embaixo da lista</span>
+            <input
+              type="checkbox"
+              checked={config.dicaVisivel}
+              onChange={(e) => void operacoes.salvarConfig({ dicaVisivel: e.target.checked })}
+              className="size-6 accent-[#0B7A43]"
+            />
+          </label>
         </section>
 
         <section className={cartao} aria-labelledby="t-dado">

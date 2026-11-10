@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   calcularDia,
   estaProgramado,
+  limiteAtingido,
   metaBatida,
   metaSuperada,
   percentualDasFracoes,
@@ -178,6 +179,47 @@ describe('RF-C4 e RF-C9 · limite', () => {
     const r = calcularDia(entrada({ data: ONTEM, habitos: [k], registros: [reg(k, 1800, ONTEM)] }));
     expect(r.fechado).toBe(true);
     expect(r.habitos[0].fracao).toBe(0);
+  });
+});
+
+describe('RF-14b · check do hábito de limite', () => {
+  const kcal = () => habito({ tipo: 'limite', meta: 1500, blocos: [300] });
+  const com = (total: number) => {
+    const k = kcal();
+    return calcularDia(entrada({ habitos: [k], registros: [reg(k, total, HOJE)] })).habitos[0];
+  };
+
+  it('T-14c: exatamente 1.500 = check (limite atingido), ainda "dentro do limite"', () => {
+    const r = com(1500);
+    expect(r.limiteAtingido).toBe(true);
+    expect(r.statusLimite).toBe('dentro');
+  });
+
+  it('T-14d: abaixo do valor não tem check', () => {
+    expect(com(1200).limiteAtingido).toBe(false);
+    expect(com(0).limiteAtingido).toBe(false);
+  });
+
+  it('T-14e: passou de 1.500 o check some e fica "acima do limite"', () => {
+    const r = com(1800);
+    expect(r.limiteAtingido).toBe(false);
+    expect(r.statusLimite).toBe('acima');
+  });
+
+  it('T-14g: comparação sem erro de ponto flutuante', () => {
+    expect(limiteAtingido(1500, 1500)).toBe(true);
+    expect(limiteAtingido(1499.9, 1500)).toBe(false);
+    expect(limiteAtingido(1500.1, 1500)).toBe(false);
+    expect(limiteAtingido(0.1 + 0.2, 0.3)).toBe(true);
+  });
+
+  it('T-14h: o check não muda o percentual do dia', () => {
+    const k = kcal();
+    const med = habito({ tipo: 'conclusao' });
+    const base = entrada({ habitos: [med, k], marcacoes: [marca(med, HOJE)] });
+    const sem = calcularDia(base);
+    const com1500 = calcularDia({ ...base, registros: [reg(k, 1500, HOJE)] });
+    expect(com1500.percentual).toBe(sem.percentual);
   });
 });
 

@@ -60,6 +60,11 @@ export function textoLimite(total: number, limite: number, unidade: string): str
   return `${formatarNumero(total)} de ${formatarNumero(limite)} ${unidade} · ${situacao}`;
 }
 
+/** RF-14b */
+export function textoLimiteAtingido(total: number, unidade: string): string {
+  return `Quantidade atingida · ${formatarNumero(total)} ${unidade}`;
+}
+
 export function textoSemanal(contagem: number, meta: number, marcadoNoDia: boolean, ehHoje: boolean): string {
   if (contagem >= meta) return `Meta da semana batida · ${meta} de ${meta}`;
   const feito = marcadoNoDia ? (ehHoje ? ' · hoje feito' : ' · feito neste dia') : '';

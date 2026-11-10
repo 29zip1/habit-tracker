@@ -2,13 +2,15 @@ import { Check } from 'lucide-react';
 import type { ResumoHabito } from '../services/calculos';
 import type { Habito, VersaoHabito } from '../types';
 import {
+  formatarNumero,
   rotuloBloco,
   textoConclusao,
   textoLimite,
+  textoLimiteAtingido,
   textoQuantidade,
   textoSemanal,
-  formatarNumero,
 } from '../services/textos';
+import { useSegurar } from '../hooks/useSegurar';
 import { IconeHabito } from './icones';
 
 export interface ItemHabito {
@@ -22,8 +24,12 @@ interface Props {
   ehHoje: boolean;
   primeira: boolean;
   aoSomar: (valor: number) => void;
+  /** RF-10: segurar o botão de bloco abre a janela para digitar outro valor. */
+  aoSegurar: (valor: number) => void;
   aoAlternar: () => void;
   aoDesfazerTudo: () => void;
+  /** RF-16: tocar no ícone ou no nome abre os registros do dia. */
+  aoAbrirRegistros: () => void;
 }
 
 function CheckBotao({ feito, aria, aoTocar }: { feito: boolean; aria: string; aoTocar: () => void }) {
@@ -45,15 +51,49 @@ function CheckBotao({ feito, aria, aoTocar }: { feito: boolean; aria: string; ao
   );
 }
 
-/** Linhas de hábito: RF-05 a RF-14. A posição nunca muda ao concluir (RF-05). */
-export function LinhaHabito({ item, ehHoje, primeira, aoSomar, aoAlternar, aoDesfazerTudo }: Props) {
+function BotaoBloco({
+  rotulo,
+  aria,
+  aoToque,
+  aoSegurar,
+}: {
+  rotulo: string;
+  aria: string;
+  aoToque: () => void;
+  aoSegurar: () => void;
+}) {
+  const gestos = useSegurar(aoToque, aoSegurar);
+  return (
+    <button
+      type="button"
+      aria-label={aria}
+      {...gestos}
+      className="sem-selecao h-11 min-w-[52px] rounded-full border-[1.5px] border-borda-bloco bg-cartao px-3 text-[14px] font-semibold text-verde"
+    >
+      {rotulo}
+    </button>
+  );
+}
+
+/** Linhas de hábito: RF-05 a RF-14b. A posição nunca muda ao concluir (RF-05). */
+export function LinhaHabito({
+  item,
+  ehHoje,
+  primeira,
+  aoSomar,
+  aoSegurar,
+  aoAlternar,
+  aoDesfazerTudo,
+  aoAbrirRegistros,
+}: Props) {
   const { habito, versao: v, resumo: r } = item;
   const quantidade = v.tipo === 'quantidade';
   const limite = v.tipo === 'limite';
   const semanal = v.tipo === 'semanal';
   const conclusao = v.tipo === 'conclusao';
+  const temRegistros = quantidade || limite;
 
-  const feito = quantidade ? r.metaBatida : conclusao || semanal ? r.marcadoNoDia : false;
+  const feito = quantidade ? r.metaBatida : limite ? r.limiteAtingido : r.marcadoNoDia;
   const superada = quantidade && r.metaSuperada;
   const acimaDoLimite = limite && r.statusLimite === 'acima';
 
@@ -71,7 +111,7 @@ export function LinhaHabito({ item, ehHoje, primeira, aoSomar, aoAlternar, aoDes
     texto = textoQuantidade(r.total, v.meta, v.unidade);
     verdePct = Math.round(Math.min(r.total / v.meta, 1) * 100); // sempre verde, sem trecho amarelo (RF-12)
   } else {
-    texto = textoLimite(r.total, v.meta, v.unidade);
+    texto = r.limiteAtingido ? textoLimiteAtingido(r.total, v.unidade) : textoLimite(r.total, v.meta, v.unidade);
     const t = Math.max(r.total, v.meta);
     verdePct = Math.round((Math.min(r.total, v.meta) / t) * 100);
     laranjaPct = Math.round((Math.max(r.total - v.meta, 0) / t) * 100);
@@ -79,6 +119,38 @@ export function LinhaHabito({ item, ehHoje, primeira, aoSomar, aoAlternar, aoDes
 
   const nome = limite ? `Até ${formatarNumero(v.meta)} ${v.unidade}` : habito.nome;
   const nomeRiscado = conclusao && feito;
+  const ariaRegistros = `Ver e corrigir registros de ${habito.nome}`;
+
+  const icone = (
+    <>
+      <IconeHabito nome={habito.icone} cor={feito ? '#FFFFFF' : 'var(--color-verde)'} />
+    </>
+  );
+  const classeIcone = `flex size-10 shrink-0 items-center justify-center rounded-xl border-0 p-0 transition-colors duration-300 ${
+    feito ? 'bg-verde' : 'bg-verde-claro'
+  } ${superada ? 'shadow-[0_0_0_3px_var(--color-ouro)]' : ''}`;
+
+  const corpo = (
+    <>
+      <div className={`truncate text-[16px] font-semibold leading-tight ${nomeRiscado ? 'text-texto2 line-through' : ''}`}>
+        {nome}
+      </div>
+      <div
+        className={`text-[13px] ${
+          acimaDoLimite ? 'font-semibold text-laranja' : feito ? 'font-semibold text-verde-escuro' : 'text-texto2'
+        }`}
+      >
+        {texto}
+      </div>
+      {temBarra && (
+        <div className={`flex h-1.5 overflow-hidden rounded-[3px] ${feito ? 'bg-trilho-ok' : 'bg-trilho'}`}>
+          <div className="barra h-1.5 bg-verde" style={{ width: `${verdePct}%` }} />
+          {limite && <div className="barra h-1.5 bg-laranja" style={{ width: `${laranjaPct}%` }} />}
+        </div>
+      )}
+    </>
+  );
+  const classeCorpo = 'flex min-w-0 flex-1 flex-col gap-1';
 
   return (
     <div
@@ -86,51 +158,44 @@ export function LinhaHabito({ item, ehHoje, primeira, aoSomar, aoAlternar, aoDes
         primeira ? '' : `border-t ${feito ? 'border-verde-borda' : 'border-linha'}`
       } ${feito ? 'bg-verde-linha' : ''}`}
     >
-      <div
-        aria-hidden="true"
-        className={`flex size-10 shrink-0 items-center justify-center rounded-xl transition-colors duration-300 ${
-          feito ? 'bg-verde' : 'bg-verde-claro'
-        } ${superada ? 'shadow-[0_0_0_3px_var(--color-ouro)]' : ''}`}
-      >
-        <IconeHabito nome={habito.icone} cor={feito ? '#FFFFFF' : 'var(--color-verde)'} />
-      </div>
+      {temRegistros ? (
+        <button type="button" aria-label={ariaRegistros} onClick={aoAbrirRegistros} className={classeIcone}>
+          {icone}
+        </button>
+      ) : (
+        <div aria-hidden="true" className={classeIcone}>
+          {icone}
+        </div>
+      )}
 
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <div className={`truncate text-[16px] font-semibold leading-tight ${nomeRiscado ? 'text-texto2 line-through' : ''}`}>
-          {nome}
-        </div>
-        <div
-          className={`text-[13px] ${
-            acimaDoLimite ? 'font-semibold text-laranja' : feito ? 'font-semibold text-verde-escuro' : 'text-texto2'
-          }`}
+      {temRegistros ? (
+        <button
+          type="button"
+          aria-label={ariaRegistros}
+          onClick={aoAbrirRegistros}
+          className={`${classeCorpo} min-h-11 cursor-pointer border-0 bg-transparent p-0 text-left text-texto`}
         >
-          {texto}
-        </div>
-        {temBarra && (
-          <div className={`flex h-1.5 overflow-hidden rounded-[3px] ${feito ? 'bg-trilho-ok' : 'bg-trilho'}`}>
-            <div className="barra h-1.5 bg-verde" style={{ width: `${verdePct}%` }} />
-            {limite && <div className="barra h-1.5 bg-laranja" style={{ width: `${laranjaPct}%` }} />}
-          </div>
-        )}
-      </div>
+          {corpo}
+        </button>
+      ) : (
+        <div className={classeCorpo}>{corpo}</div>
+      )}
 
       <div className="flex shrink-0 items-center gap-1.5">
-        {(quantidade || limite) &&
+        {temRegistros &&
           v.blocos.map((b) => (
-            <button
+            <BotaoBloco
               key={b}
-              type="button"
-              aria-label={`Adicionar ${formatarNumero(b)} ${v.unidade} em ${habito.nome}`}
-              onClick={() => aoSomar(b)}
-              className="sem-selecao h-11 min-w-[52px] rounded-full border-[1.5px] border-borda-bloco bg-cartao px-3 text-[14px] font-semibold text-verde"
-            >
-              {rotuloBloco(b, v.unidade, v.blocos.length)}
-            </button>
+              rotulo={rotuloBloco(b, v.unidade, v.blocos.length)}
+              aria={`Adicionar ${formatarNumero(b)} ${v.unidade} em ${habito.nome}. Segure para digitar outro valor`}
+              aoToque={() => aoSomar(b)}
+              aoSegurar={() => aoSegurar(b)}
+            />
           ))}
-        {quantidade && r.metaBatida && (
+        {(quantidade || limite) && feito && (
           <CheckBotao
             feito
-            aria={`Meta batida. Toque para desfazer todo o registro de ${habito.nome} neste dia`}
+            aria={`${limite ? 'Quantidade atingida' : 'Meta batida'}. Toque para desfazer todo o registro de ${habito.nome} neste dia`}
             aoTocar={aoDesfazerTudo}
           />
         )}

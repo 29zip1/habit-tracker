@@ -1,16 +1,34 @@
 import { useMemo, useState } from 'react';
 import { operacoes } from '../database/operacoes';
 import type { EntradaDia } from '../services/calculos';
-import { arredondar, calcularDia, versaoVigente } from '../services/calculos';
+import { arredondar, calcularDia, limiteAtingido, versaoVigente } from '../services/calculos';
 import { formatarHorario, somarDias } from '../services/datas';
-import { dataCurta, diaSemanaLongo, formatarNumero, textoRegistros } from '../services/textos';
-import { CONFIG_PADRAO, type DataLocal } from '../types';
+import {
+  dataCurta,
+  diaSemanaLongo,
+  formatarNumero,
+  textoRegistros,
+} from '../services/textos';
+import { CONFIG_PADRAO, type DataLocal, type OrigemRegistro, type Registro } from '../types';
 import { AvisoDesfazer } from '../components/AvisoDesfazer';
 import { Cabecalho } from '../components/Cabecalho';
 import { FaixaDias } from '../components/FaixaDias';
+import { JanelaValor, type ConfigJanela } from '../components/JanelaValor';
 import { LinhaHabito, type ItemHabito } from '../components/LinhaHabito';
+import { NotaDia } from '../components/NotaDia';
+import { PainelRegistros } from '../components/PainelRegistros';
 import { useAviso } from '../hooks/useAviso';
 import { useDataHoje, useLive } from '../hooks/useLive';
+
+interface JanelaAberta extends ConfigJanela {
+  habitoId: string;
+  registroId?: string;
+  origem: OrigemRegistro;
+}
+
+const botaoSecundario =
+  'h-11 rounded-full border-[1.5px] border-verde bg-transparent px-[22px] text-[14px] font-semibold text-verde';
+const botaoLink = 'h-11 rounded-full border-0 bg-transparent px-3 text-[14px] font-semibold text-verde underline';
 
 export default function Hoje({ irParaAjustes }: { irParaAjustes: () => void }) {
   const config = useLive(() => operacoes.lerConfig(), [], CONFIG_PADRAO);
@@ -19,6 +37,10 @@ export default function Hoje({ irParaAjustes }: { irParaAjustes: () => void }) {
   const data = escolhida ?? hoje;
   const ehHoje = data === hoje;
   const { aviso, mostrar, desfazer } = useAviso();
+
+  const [painelId, setPainelId] = useState<string | null>(null);
+  const [janela, setJanela] = useState<JanelaAberta | null>(null);
+  const [notaAberta, setNotaAberta] = useState(false);
 
   const inicioFaixa = somarDias(hoje, -6);
   const entradasFaixa = useLive(
@@ -54,17 +76,29 @@ export default function Hoje({ irParaAjustes }: { irParaAjustes: () => void }) {
       .filter((n): n is string => Boolean(n));
   }, [entrada, resumo]);
 
+  const itemDoPainel = painelId ? (itens.find((i) => i.habito.id === painelId) ?? null) : null;
+  const registrosDoPainel: Registro[] = useMemo(() => {
+    if (!entrada || !painelId) return [];
+    return entrada.registros
+      .filter((r) => r.habitoId === painelId && r.data === data)
+      .sort((a, b) => (a.horario === b.horario ? (a.criadoEm < b.criadoEm ? -1 : 1) : a.horario < b.horario ? -1 : 1));
+  }, [entrada, painelId, data]);
+
+  const horarioPadrao = () => (ehHoje ? formatarHorario(new Date()) : '12:00');
+
   // ----- ações -----
 
-  async function somar(item: ItemHabito, valor: number) {
+  async function registrar(item: ItemHabito, valor: number, origem: OrigemRegistro, horario?: string) {
     const { versao: v, habito } = item;
     const antes = item.resumo.total;
-    const cruzou = v.tipo === 'quantidade' && antes < v.meta && arredondar(antes + valor) >= v.meta;
-    const horario = ehHoje ? formatarHorario(new Date()) : '12:00';
-    const registro = await operacoes.registrarValor(habito.id, valor, data, 'bloco', horario);
+    const depois = arredondar(antes + valor);
+    const cruzouMeta = v.tipo === 'quantidade' && antes < v.meta && depois >= v.meta;
+    const cruzouLimite = v.tipo === 'limite' && !limiteAtingido(antes, v.meta) && limiteAtingido(depois, v.meta);
+    const cruzou = cruzouMeta || cruzouLimite;
+    const registro = await operacoes.registrarValor(habito.id, valor, data, origem, horario ?? horarioPadrao());
     const base = `${habito.nome} +${formatarNumero(valor)} ${v.unidade}`.trim();
     mostrar({
-      rotulo: cruzou ? `Meta batida · ${base}` : base,
+      rotulo: cruzouLimite ? `Quantidade atingida · ${base}` : cruzouMeta ? `Meta batida · ${base}` : base,
       cruzou,
       desfazer: async () => {
         await operacoes.excluirRegistro(registro.id);
@@ -114,13 +148,120 @@ export default function Hoje({ irParaAjustes }: { irParaAjustes: () => void }) {
     });
   }
 
+  async function alternarFolga() {
+    const folgaAntes = entrada?.dia?.folga === true;
+    await operacoes.salvarDia(data, { folga: !folgaAntes });
+    mostrar({
+      rotulo: folgaAntes ? 'Folga removida deste dia' : 'Dia marcado como folga',
+      cruzou: false,
+      desfazer: async () => {
+        await operacoes.salvarDia(data, { folga: folgaAntes });
+      },
+    });
+  }
+
+  async function salvarNota(texto: string) {
+    const antes = entrada?.dia?.nota ?? '';
+    await operacoes.salvarDia(data, { nota: texto === '' ? undefined : texto });
+    setNotaAberta(false);
+    mostrar({
+      rotulo: texto === '' ? 'Nota removida' : 'Nota salva',
+      cruzou: false,
+      desfazer: async () => {
+        await operacoes.salvarDia(data, { nota: antes === '' ? undefined : antes });
+      },
+    });
+  }
+
+  // ----- janelas (segurar, corrigir, manual) -----
+
+  function abrirDigitar(item: ItemHabito, bloco: number) {
+    const { habito, versao: v } = item;
+    setJanela({
+      modo: 'adicionar',
+      habitoId: habito.id,
+      origem: 'digitado',
+      titulo: `Registrar ${habito.nome.toLowerCase()}`,
+      subtitulo: 'Quanto você fez desta vez?',
+      unidade: v.unidade,
+      valorInicial: bloco,
+      passo: v.passoAjuste,
+      rodape: `Bloco padrão: +${formatarNumero(bloco)} ${v.unidade} · você muda isso em Hábitos`,
+    });
+  }
+
+  function abrirManual(item: ItemHabito) {
+    const { habito, versao: v } = item;
+    setJanela({
+      modo: 'manual',
+      habitoId: habito.id,
+      origem: 'manual',
+      titulo: `Registrar ${habito.nome.toLowerCase()}`,
+      subtitulo: 'Registro manual',
+      unidade: v.unidade,
+      valorInicial: null,
+      passo: v.passoAjuste,
+      horarioInicial: horarioPadrao(),
+      rodape: ehHoje
+        ? 'Fica salvo com o horário escolhido (agora, se você não mudar).'
+        : `Registro em ${dataCurta(data)}. Ajuste o horário se quiser.`,
+    });
+  }
+
+  function abrirCorrigir(item: ItemHabito, registro: Registro) {
+    const { habito, versao: v } = item;
+    setJanela({
+      modo: 'corrigir',
+      habitoId: habito.id,
+      registroId: registro.id,
+      origem: registro.origem,
+      titulo: `Corrigir registro de ${habito.nome.toLowerCase()}`,
+      subtitulo: 'Digite o valor correto.',
+      unidade: v.unidade,
+      valorInicial: registro.valor,
+      passo: v.passoAjuste,
+      rodape: `Registro das ${registro.horario} · você pode excluir na lista`,
+    });
+  }
+
+  async function confirmarJanela(valor: number, horario?: string) {
+    if (!janela) return;
+    const item = itens.find((i) => i.habito.id === janela.habitoId);
+    const atual = janela;
+    setJanela(null);
+    if (!item) return;
+    if (atual.modo === 'corrigir' && atual.registroId) {
+      const antigo = await operacoes.corrigirRegistro(atual.registroId, valor);
+      mostrar({
+        rotulo: 'Registro corrigido',
+        cruzou: false,
+        desfazer: async () => {
+          await operacoes.corrigirRegistro(antigo.id, antigo.valor);
+        },
+      });
+      return;
+    }
+    await registrar(item, valor, atual.origem, horario);
+  }
+
+  async function excluirRegistro(registro: Registro) {
+    const removido = await operacoes.excluirRegistro(registro.id);
+    if (!removido) return;
+    mostrar({
+      rotulo: 'Registro excluído',
+      cruzou: false,
+      desfazer: async () => {
+        await operacoes.restaurarRegistros([removido]);
+      },
+    });
+  }
+
   const fechadoManual = entrada?.dia?.fechado === true;
+  const emFolga = entrada?.dia?.folga === true;
+  const nota = entrada?.dia?.nota ?? '';
 
   return (
-    <div
-      className="h-full overflow-y-auto pb-28"
-      style={{ paddingTop: 'max(env(safe-area-inset-top), 16px)' }}
-    >
+    <div className="h-full overflow-y-auto pb-28" style={{ paddingTop: 'max(env(safe-area-inset-top), 16px)' }}>
       {!ehHoje && (
         <div className="mx-4 mb-3 flex items-center justify-between rounded-2xl bg-verde-claro px-4 py-2 text-[14px]">
           <span>
@@ -166,41 +307,88 @@ export default function Hoje({ irParaAjustes }: { irParaAjustes: () => void }) {
             item={item}
             ehHoje={ehHoje}
             primeira={i === 0}
-            aoSomar={(valor) => void somar(item, valor)}
+            aoSomar={(valor) => void registrar(item, valor, 'bloco')}
+            aoSegurar={(valor) => abrirDigitar(item, valor)}
             aoAlternar={() => void alternar(item)}
             aoDesfazerTudo={() => void desfazerTudo(item)}
+            aoAbrirRegistros={() => setPainelId(item.habito.id)}
           />
         ))}
       </section>
 
-      {resumo && !resumo.fechado && ehHoje && (
+      {config.dicaVisivel && itens.length > 0 && (
+        <p className="mx-4 mt-2 text-center text-[12px] text-texto2">
+          Segure um botão (+10, +250…) para digitar outro valor. Toque no ícone ou no nome do hábito para ver e
+          corrigir os registros.
+        </p>
+      )}
+
+      {resumo && ehHoje && (
         <div className="mx-4 mt-3 flex flex-col items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => void finalizarOuReabrir()}
-            className="h-11 rounded-full border-[1.5px] border-verde bg-transparent px-[22px] text-[14px] font-semibold text-verde"
-          >
-            Finalizar dia
+          <button type="button" onClick={() => void finalizarOuReabrir()} className={botaoSecundario}>
+            {fechadoManual ? 'Reabrir dia' : 'Finalizar dia'}
           </button>
           <div className="text-center text-[12px] text-texto2">
-            O dia fecha sozinho à meia-noite. Tudo fica salvo neste iPhone.
+            {fechadoManual
+              ? 'Dia finalizado. Tudo fica salvo neste iPhone.'
+              : 'O dia fecha sozinho à meia-noite. Tudo fica salvo neste iPhone.'}
           </div>
         </div>
       )}
-      {resumo && ehHoje && fechadoManual && (
-        <div className="mx-4 mt-3 flex flex-col items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => void finalizarOuReabrir()}
-            className="h-11 rounded-full border-[1.5px] border-verde bg-transparent px-[22px] text-[14px] font-semibold text-verde"
-          >
-            Reabrir dia
-          </button>
-          <div className="text-center text-[12px] text-texto2">Dia finalizado. Tudo fica salvo neste iPhone.</div>
+
+      {resumo && (
+        <div className="mx-4 mt-2 flex flex-col items-center gap-1">
+          {nota !== '' && (
+            <p className="w-full whitespace-pre-wrap rounded-2xl border border-borda bg-cartao px-4 py-3 text-[14px]">
+              <span className="font-semibold">Nota do dia: </span>
+              {nota}
+            </p>
+          )}
+          <div className="flex flex-wrap items-center justify-center">
+            <button type="button" onClick={() => setNotaAberta(true)} className={botaoLink}>
+              {nota === '' ? 'Nota do dia' : 'Editar nota'}
+            </button>
+            <button type="button" onClick={() => void alternarFolga()} className={botaoLink}>
+              {emFolga ? 'Remover folga' : 'Dia de folga'}
+            </button>
+          </div>
         </div>
       )}
 
       <AvisoDesfazer aviso={aviso} aoDesfazer={() => void desfazer()} />
+
+      {itemDoPainel && !janela && (
+        <PainelRegistros
+          titulo={`Registros ${ehHoje ? 'de hoje' : `de ${dataCurta(data)}`} · ${itemDoPainel.habito.nome}`}
+          totalTexto={`Total: ${formatarNumero(itemDoPainel.resumo.total)} ${itemDoPainel.versao.unidade} · ${
+            itemDoPainel.versao.tipo === 'limite' ? 'limite' : 'meta'
+          } ${formatarNumero(itemDoPainel.versao.meta)}`}
+          unidade={itemDoPainel.versao.unidade}
+          registros={registrosDoPainel}
+          aoCorrigir={(r) => abrirCorrigir(itemDoPainel, r)}
+          aoExcluir={(r) => void excluirRegistro(r)}
+          aoRegistroManual={() => abrirManual(itemDoPainel)}
+          aoFechar={() => setPainelId(null)}
+        />
+      )}
+
+      {janela && (
+        <JanelaValor
+          key={`${janela.modo}-${janela.habitoId}-${janela.registroId ?? 'novo'}`}
+          config={janela}
+          aoConfirmar={(valor, horario) => void confirmarJanela(valor, horario)}
+          aoCancelar={() => setJanela(null)}
+        />
+      )}
+
+      {notaAberta && (
+        <NotaDia
+          titulo={`Nota do dia ${dataCurta(data)}`}
+          inicial={nota}
+          aoSalvar={(t) => void salvarNota(t)}
+          aoCancelar={() => setNotaAberta(false)}
+        />
+      )}
     </div>
   );
 }

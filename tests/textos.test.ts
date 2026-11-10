@@ -12,6 +12,7 @@ import {
   textoConcluidas,
   textoConclusao,
   textoLimite,
+  textoLimiteAtingido,
   textoQuantidade,
   textoRegistros,
   textoSemanal,
@@ -60,6 +61,10 @@ describe('textos da tela Hoje', () => {
     expect(textoLimite(620, 1500, 'kcal')).toBe('620 de 1.500 kcal · dentro do limite');
     expect(textoLimite(1500, 1500, 'kcal')).toBe('1.500 de 1.500 kcal · dentro do limite');
     expect(textoLimite(1800, 1500, 'kcal')).toBe('1.800 de 1.500 kcal · acima do limite');
+  });
+
+  it('limite atingido (T-14c)', () => {
+    expect(textoLimiteAtingido(1500, 'kcal')).toBe('Quantidade atingida · 1.500 kcal');
   });
 
   it('semanal (T-07)', () => {
