@@ -1,24 +1,70 @@
 @import 'tailwindcss';
 
-:root {
-  --verde: #0b7a43;
-  --verde-claro: #e8f3ec;
-  --texto: #1b1f1d;
-  --texto-2: #5b6560;
-  --fundo: #f7f8f6;
+/* Cores do protótipo (seção 15 da especificação), como variáveis.
+   O modo escuro troca só estes valores. */
+@theme {
+  --color-fundo: #f7f8f6;
+  --color-cartao: #ffffff;
+  --color-borda: #e6e9e7;
+  --color-linha: #e9ecea;
+  --color-texto: #1b1f1d;
+  --color-texto2: #5b6560;
+  --color-verde: #0b7a43;
+  --color-verde-claro: #e8f3ec;
+  --color-verde-linha: #e4f2e9;
+  --color-verde-borda: #d2e6d9;
+  --color-verde-escuro: #075e34;
+  --color-trilho: #e6eae7;
+  --color-trilho-ok: #c4ddcc;
+  --color-ouro: #f5b301;
+  --color-laranja: #b45309;
+  --color-laranja-claro: #fff7ed;
+  --color-cinza-anel: #8a948f;
+  --color-borda-bloco: #b7d4c1;
+  --color-chip: #e6eae7;
+  --color-chip-texto: #3f4a44;
+  --color-vermelho: #b42318;
+  --color-aviso: #1b1f1d;
+  --color-aviso-desfazer: #8fe0b2;
+}
+
+html,
+body,
+#root {
+  height: 100%;
 }
 
 html,
 body {
   margin: 0;
-  background: var(--fundo);
-  color: var(--texto);
+  background: var(--color-fundo);
+  color: var(--color-texto);
   /* Fonte do sistema: nada é carregado da internet (RF-80). */
   font-family: -apple-system, system-ui, 'Segoe UI', Roboto, sans-serif;
   -webkit-text-size-adjust: 100%;
+  overscroll-behavior-y: none;
 }
 
 button {
   font-family: inherit;
+  cursor: pointer;
   touch-action: manipulation;
+}
+
+/* Botões que podem ser segurados (RF-10): sem menu, seleção ou lupa do iPhone. */
+.sem-selecao {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* RF-23: animação das barras; respeita "Reduzir movimento" do iPhone. */
+.barra {
+  transition: width 0.4s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .barra,
+  .animar {
+    transition: none !important;
+  }
 }

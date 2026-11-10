@@ -15,7 +15,13 @@ import type {
 } from '../types';
 import { CONFIG_PADRAO, VERSAO_FORMATO_BANCO } from '../types';
 import { entraNoPercentualPadrao, type EntradaDia, type HabitoCompleto } from '../services/calculos';
-import { diasDaSemana, ehDataValida, formatarHorario } from '../services/datas';
+import {
+  diasDaSemana,
+  ehDataValida,
+  formatarHorario,
+  intervaloDeDatas,
+  somarDias,
+} from '../services/datas';
 import { BancoHabitos, db as bancoPadrao } from './db';
 
 const agora = () => new Date().toISOString();
@@ -40,6 +46,7 @@ export interface NovoHabito extends DadosVersao {
   dataInicial?: DataLocal;
   dataFinal?: DataLocal;
   vigenteDesde: DataLocal;
+  exemplo?: boolean;
 }
 
 function validarVersao(d: DadosVersao): void {
@@ -130,6 +137,7 @@ export class Operacoes {
         status: 'ativo',
         dataInicial: d.dataInicial,
         dataFinal: d.dataFinal,
+        exemplo: d.exemplo,
         criadoEm: t,
         editadoEm: t,
       };
@@ -280,6 +288,56 @@ export class Operacoes {
       habito,
       versoes: versoes.filter((v) => v.habitoId === habito.id),
     }));
+  }
+
+  /** Entradas de vários dias de uma vez (faixa dos 7 dias, calendário). */
+  async carregarEntradasDoIntervalo(
+    inicio: DataLocal,
+    fim: DataLocal,
+    hoje: DataLocal,
+  ): Promise<EntradaDia[]> {
+    const config = await this.lerConfig();
+    const inicioMarcacoes = somarDias(inicio, -7);
+    const [habitos, registros, marcacoes, dias] = await Promise.all([
+      this.lerHabitosCompletos(),
+      this.db.registros.where('data').between(inicio, fim, true, true).toArray(),
+      this.db.marcacoes.where('data').between(inicioMarcacoes, fim, true, true).toArray(),
+      this.db.dias.where('data').between(inicio, fim, true, true).toArray(),
+    ]);
+    const porData = new Map(dias.map((d) => [d.data, d]));
+    return intervaloDeDatas(inicio, fim).map((data) => ({
+      data,
+      hoje,
+      habitos,
+      registros,
+      marcacoes,
+      dia: porData.get(data),
+      inicioSemana: config.inicioSemana,
+    }));
+  }
+
+  // ----- Hábitos de exemplo (temporário, Fase 3) -----
+
+  /**
+   * Remove SOMENTE hábitos marcados como exemplo, com seus registros, marcações
+   * e versões. Nunca toca em hábitos reais. Só é chamado por ação do usuário,
+   * depois de confirmação.
+   */
+  async removerExemplos(): Promise<{ habitos: number; registros: number }> {
+    return this.db.transaction(
+      'rw',
+      [this.db.habitos, this.db.versoes, this.db.registros, this.db.marcacoes],
+      async () => {
+        const ex = await this.db.habitos.filter((h) => h.exemplo === true).toArray();
+        const ids = ex.map((h) => h.id);
+        const regs = await this.db.registros.where('habitoId').anyOf(ids).primaryKeys();
+        await this.db.registros.bulkDelete(regs);
+        await this.db.marcacoes.where('habitoId').anyOf(ids).delete();
+        await this.db.versoes.where('habitoId').anyOf(ids).delete();
+        await this.db.habitos.bulkDelete(ids);
+        return { habitos: ids.length, registros: regs.length };
+      },
+    );
   }
 
   /** Monta tudo que `calcularDia` precisa para uma data. */

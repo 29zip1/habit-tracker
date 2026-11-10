@@ -21,6 +21,8 @@ export interface Habito {
   dataFinal?: DataLocal;
   /** A partir desta data o hábito deixa de aparecer. O passado continua contando. */
   arquivadoEm?: DataLocal;
+  /** Hábito de exemplo (Fase 3): pode ser removido em bloco pelo usuário. Sai na Fase 5. */
+  exemplo?: boolean;
   criadoEm: string;
   editadoEm: string;
 }
