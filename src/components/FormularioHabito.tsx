@@ -27,6 +27,9 @@ interface Props {
   hoje: DataLocal;
   aoFechar: () => void;
   aoArquivar?: () => void;
+  aoDuplicar?: () => void;
+  /** Só para hábito arquivado (RF-32). */
+  aoExcluir?: () => void;
   /** Categorias já usadas em outros hábitos (viram botões). */
   categoriasUsadas?: string[];
 }
@@ -37,7 +40,7 @@ const rotulo = 'text-[14px] font-semibold text-texto';
 const ajuda = 'text-[13px] text-texto2';
 
 /** Criar e editar hábito (RF-30, RF-31). Tela cheia, com rolagem. */
-export function FormularioHabito({ habito, hoje, aoFechar, aoArquivar, categoriasUsadas = [] }: Props) {
+export function FormularioHabito({ habito, hoje, aoFechar, aoArquivar, aoDuplicar, aoExcluir, categoriasUsadas = [] }: Props) {
   const editando = habito !== undefined;
   const versaoAtual = useMemo(() => {
     if (!habito) return undefined;
@@ -463,6 +466,15 @@ export function FormularioHabito({ habito, hoje, aoFechar, aoArquivar, categoria
               </label>
             </div>
 
+            {editando && aoDuplicar && (
+              <button
+                type="button"
+                onClick={aoDuplicar}
+                className="h-12 rounded-full border-[1.5px] border-verde-texto bg-transparent text-[15px] font-semibold text-verde-texto"
+              >
+                Duplicar este hábito
+              </button>
+            )}
             {editando && aoArquivar && (
               <button
                 type="button"
@@ -470,6 +482,15 @@ export function FormularioHabito({ habito, hoje, aoFechar, aoArquivar, categoria
                 className="h-12 rounded-full border-[1.5px] border-laranja bg-transparent text-[15px] font-semibold text-laranja-texto"
               >
                 Arquivar este hábito
+              </button>
+            )}
+            {editando && aoExcluir && (
+              <button
+                type="button"
+                onClick={aoExcluir}
+                className="h-12 rounded-full border-[1.5px] border-laranja bg-transparent text-[15px] font-semibold text-laranja-texto"
+              >
+                Excluir de vez…
               </button>
             )}
           </div>

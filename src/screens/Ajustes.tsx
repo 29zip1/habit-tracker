@@ -6,7 +6,7 @@ import { dataLogica } from '../services/datas';
 import { CONFIG_PADRAO } from '../types';
 import { estaInstalado, lerArmazenamento, type StatusArmazenamento } from '../services/ambiente';
 import { salvarArquivoTeste, type TipoTeste } from '../services/arquivoTeste';
-import { carregarExemplos } from '../services/exemplos';
+import { ImportarHabitos } from '../components/ImportarHabitos';
 import { criarCopiaDeSeguranca } from '../database/copias';
 import { SecaoBackup } from '../components/SecaoBackup';
 import { useLive } from '../hooks/useLive';
@@ -57,12 +57,6 @@ export default function Ajustes({ atualizacao }: { atualizacao: ReturnType<typeo
     setMsgArquivo(await salvarArquivoTeste(tipo));
   }
 
-  async function criarExemplos() {
-    const config = await operacoes.lerConfig();
-    const n = await carregarExemplos(operacoes, dataLogica(new Date(), config.inicioDoDiaHora));
-    setMsgExemplo(`${n} hábitos de exemplo criados. Veja na aba Hoje.`);
-  }
-
   async function removerExemplos() {
     // RF-65/RF-69: antes de excluir, guarda uma cópia dos dados.
     const cfg = await operacoes.lerConfig();
@@ -91,24 +85,29 @@ export default function Ajustes({ atualizacao }: { atualizacao: ReturnType<typeo
 
         <SecaoBackup />
 
-        <section className={cartao} aria-labelledby="t-ex">
-          <h2 id="t-ex" className="text-[16px] font-semibold">
-            Hábitos de exemplo (temporário)
+        <section className={cartao} aria-labelledby="t-imp">
+          <h2 id="t-imp" className="text-[16px] font-semibold">
+            Importar hábitos
           </h2>
           <p className="mt-1 text-[14px] text-texto2">
-            Para testar a tela Hoje. São 7 hábitos genéricos, sem nada pessoal. A criação dos seus hábitos chega
-            numa próxima fase; estes exemplos saem então.
+            Escolha um arquivo de hábitos (por exemplo, o que você guardou no iCloud Drive). Só acrescenta hábitos novos:
+            os que você já tem e seus registros não mudam, e hábitos com o mesmo nome são pulados.
+          </p>
+          <div className="mt-3">
+            <ImportarHabitos />
+          </div>
+        </section>
+
+        {quantosExemplos > 0 && (
+        <section className={cartao} aria-labelledby="t-ex">
+          <h2 id="t-ex" className="text-[16px] font-semibold">
+            Hábitos de exemplo
+          </h2>
+          <p className="mt-1 text-[14px] text-texto2">
+            Estes são os hábitos de exemplo que você carregou antes. Quando quiser, apague todos de uma vez (os hábitos
+            que você criou ou importou não são tocados).
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              type="button"
-              className={botaoPrincipal}
-              disabled={quantosExemplos > 0}
-              style={quantosExemplos > 0 ? { opacity: 0.5 } : undefined}
-              onClick={() => void criarExemplos()}
-            >
-              Carregar hábitos de exemplo
-            </button>
             <button
               type="button"
               className={botaoContorno}
@@ -137,6 +136,7 @@ export default function Ajustes({ atualizacao }: { atualizacao: ReturnType<typeo
           )}
           {msgExemplo && <p className="mt-3 text-[14px]">{msgExemplo}</p>}
         </section>
+        )}
 
         <section className={cartao} aria-labelledby="t-tela">
           <h2 id="t-tela" className="text-[16px] font-semibold">

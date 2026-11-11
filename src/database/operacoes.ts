@@ -49,7 +49,7 @@ export interface NovoHabito extends DadosVersao {
   exemplo?: boolean;
 }
 
-function validarVersao(d: DadosVersao): void {
+export function validarVersao(d: DadosVersao): void {
   if (!(d.meta > 0) || !Number.isFinite(d.meta)) throw new Error('A meta precisa ser maior que zero.');
   if (d.tipo === 'semanal' && (!Number.isInteger(d.meta) || d.meta > 7)) {
     throw new Error('Meta semanal deve ser um número inteiro de 1 a 7.');
@@ -207,6 +207,82 @@ export class Operacoes {
 
   async reativarHabito(id: string): Promise<void> {
     await this.db.habitos.update(id, { status: 'ativo', arquivadoEm: undefined, editadoEm: agora() });
+  }
+
+  /** RF-33: troca a posição do hábito ativo com o vizinho. Devolve false se já está na ponta. */
+  async moverHabito(id: string, direcao: -1 | 1): Promise<boolean> {
+    return this.db.transaction('rw', this.db.habitos, async () => {
+      const ativos = (await this.db.habitos.orderBy('ordem').toArray()).filter((h) => h.status === 'ativo');
+      const i = ativos.findIndex((h) => h.id === id);
+      const j = i + direcao;
+      if (i < 0 || j < 0 || j >= ativos.length) return false;
+      const t = agora();
+      await this.db.habitos.update(ativos[i].id, { ordem: ativos[j].ordem, editadoEm: t });
+      await this.db.habitos.update(ativos[j].id, { ordem: ativos[i].ordem, editadoEm: t });
+      return true;
+    });
+  }
+
+  /**
+   * RF-33: cria "Nome (cópia)" logo abaixo do original, com a configuração que vale
+   * em `hoje`. Sem registros, marcações nem histórico.
+   */
+  async duplicarHabito(id: string, hoje: DataLocal): Promise<{ habito: Habito; versao: VersaoHabito }> {
+    return this.db.transaction('rw', this.db.habitos, this.db.versoes, async () => {
+      const original = await this.db.habitos.get(id);
+      if (!original) throw new Error('Hábito não encontrado.');
+      const versoes = (await this.db.versoes.where('habitoId').equals(id).toArray()).sort((a, b) =>
+        a.vigenteDesde < b.vigenteDesde ? -1 : 1,
+      );
+      const v = versoes.filter((x) => x.vigenteDesde <= hoje).pop() ?? versoes[0];
+      if (!v) throw new Error('Hábito sem configuração.');
+      const nome = `${original.nome} (cópia)`.slice(0, 60);
+      const criado = await this.criarHabito({
+        nome,
+        descricao: original.descricao,
+        icone: original.icone,
+        cor: original.cor,
+        categoria: original.categoria,
+        tipo: v.tipo,
+        unidade: v.unidade,
+        meta: v.meta,
+        blocos: v.blocos,
+        frequencia: v.frequencia,
+        entraNoPercentual: v.entraNoPercentual,
+        passoAjuste: v.passoAjuste,
+        vigenteDesde: hoje,
+      });
+      // posição: logo abaixo do original; os de baixo descem uma casa
+      const abaixo = await this.db.habitos.where('ordem').above(original.ordem).toArray();
+      for (const h of abaixo) {
+        if (h.id !== criado.habito.id) await this.db.habitos.update(h.id, { ordem: h.ordem + 1 });
+      }
+      await this.db.habitos.update(criado.habito.id, { ordem: original.ordem + 1 });
+      return { ...criado, habito: { ...criado.habito, ordem: original.ordem + 1 } };
+    });
+  }
+
+  /**
+   * RF-32: apaga de vez um hábito ARQUIVADO, com versões, registros e marcações.
+   * Não toca em nenhum outro hábito. Quem chama guarda a cópia de segurança antes.
+   */
+  async excluirHabito(id: string): Promise<{ registros: number; marcacoes: number }> {
+    return this.db.transaction(
+      'rw',
+      [this.db.habitos, this.db.versoes, this.db.registros, this.db.marcacoes],
+      async () => {
+        const h = await this.db.habitos.get(id);
+        if (!h) throw new Error('Hábito não encontrado.');
+        if (h.status !== 'arquivado') throw new Error('Só dá para excluir de vez um hábito arquivado.');
+        const regs = await this.db.registros.where('habitoId').equals(id).primaryKeys();
+        const marcs = await this.db.marcacoes.where('habitoId').equals(id).primaryKeys();
+        await this.db.registros.bulkDelete(regs);
+        await this.db.marcacoes.bulkDelete(marcs);
+        await this.db.versoes.where('habitoId').equals(id).delete();
+        await this.db.habitos.delete(id);
+        return { registros: regs.length, marcacoes: marcs.length };
+      },
+    );
   }
 
   // ----- Registros (RF-18) -----

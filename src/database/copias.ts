@@ -22,6 +22,7 @@ export const ROTULO_MOTIVO: Record<MotivoCopia, string> = {
   'antes-atualizar': 'Antes de atualizar o app',
   'antes-migrar': 'Antes de migrar o banco',
   'antes-excluir': 'Antes de excluir',
+  'antes-importar': 'Antes de importar hábitos',
 };
 
 const novoId = () => crypto.randomUUID();

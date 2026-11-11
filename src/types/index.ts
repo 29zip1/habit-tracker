@@ -97,7 +97,8 @@ export type MotivoCopia =
   | 'antes-restaurar'
   | 'antes-atualizar'
   | 'antes-migrar'
-  | 'antes-excluir';
+  | 'antes-excluir'
+  | 'antes-importar';
 
 /** Cópia automática interna (RF-69). Fica no iPhone, junto com os dados. */
 export interface Copia {

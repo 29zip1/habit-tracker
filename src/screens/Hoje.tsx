@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { db } from '../database/db';
 import { operacoes } from '../database/operacoes';
 import type { EntradaDia } from '../services/calculos';
 import { arredondar, calcularDia, limiteAtingido, versaoVigente } from '../services/calculos';
@@ -17,6 +18,7 @@ import { FaixaDias } from '../components/FaixaDias';
 import { JanelaValor, type ConfigJanela } from '../components/JanelaValor';
 import { LinhaHabito, type ItemHabito } from '../components/LinhaHabito';
 import { NotaDia } from '../components/NotaDia';
+import { PrimeiroUso } from '../components/PrimeiroUso';
 import { PainelRegistros } from '../components/PainelRegistros';
 import { useAviso } from '../hooks/useAviso';
 import { useDataHoje, useLive } from '../hooks/useLive';
@@ -42,6 +44,7 @@ export default function Hoje({ irParaAjustes, irParaHabitos }: { irParaAjustes: 
   const [painelId, setPainelId] = useState<string | null>(null);
   const [janela, setJanela] = useState<JanelaAberta | null>(null);
   const [notaAberta, setNotaAberta] = useState(false);
+  const totalHabitos = useLive(() => db.habitos.count(), [], -1);
 
   const inicioFaixa = somarDias(hoje, -6);
   const entradasFaixa = useLive(
@@ -292,29 +295,18 @@ export default function Hoje({ irParaAjustes, irParaHabitos }: { irParaAjustes: 
       )}
 
       <section className="mx-4 mt-2.5 overflow-hidden rounded-[20px] border border-borda bg-cartao px-4" aria-label="Hábitos do dia">
-        {resumo && itens.length === 0 && (
+        {resumo && itens.length === 0 && totalHabitos === 0 && (
+          <PrimeiroUso irParaHabitos={irParaHabitos} irParaAjustes={irParaAjustes} />
+        )}
+        {resumo && itens.length === 0 && totalHabitos > 0 && (
           <div className="px-1 py-6 text-center text-[15px] text-texto2">
             <p>Nenhum hábito programado para este dia.</p>
             <button
               type="button"
               onClick={irParaHabitos}
-              className="mt-3 h-11 rounded-full border-0 bg-verde px-5 text-[14px] font-semibold text-white"
+              className="mt-3 h-11 rounded-full border-[1.5px] border-verde-texto bg-cartao px-5 text-[14px] font-semibold text-verde-texto"
             >
-              Criar meu primeiro hábito
-            </button>
-            <button
-              type="button"
-              onClick={irParaAjustes}
-              className="mt-2 h-11 rounded-full border-[1.5px] border-verde-texto bg-cartao px-5 text-[14px] font-semibold text-verde-texto"
-            >
-              Carregar hábitos de exemplo (Ajustes)
-            </button>
-            <button
-              type="button"
-              onClick={irParaAjustes}
-              className="mt-2 h-11 rounded-full border-0 bg-transparent px-5 text-[14px] font-semibold text-verde-texto underline"
-            >
-              Já tenho backup? Restaurar
+              Ver meus hábitos
             </button>
           </div>
         )}
