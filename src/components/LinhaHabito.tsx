@@ -11,6 +11,7 @@ import {
   textoSemanal,
 } from '../services/textos';
 import { useSegurar } from '../hooks/useSegurar';
+import { corDoDesenho } from '../services/habitos';
 import { IconeHabito } from './icones';
 
 export interface ItemHabito {
@@ -117,18 +118,20 @@ export function LinhaHabito({
     laranjaPct = Math.round((Math.max(r.total - v.meta, 0) / t) * 100);
   }
 
-  const nome = limite ? `Até ${formatarNumero(v.meta)} ${v.unidade}` : habito.nome;
+  const nome = habito.nome; // sempre o nome que a pessoa escolheu
   const nomeRiscado = conclusao && feito;
   const ariaRegistros = `Ver e corrigir registros de ${habito.nome}`;
 
   const icone = (
     <>
-      <IconeHabito nome={habito.icone} cor={feito ? '#FFFFFF' : 'var(--color-verde-texto)'} />
+      <IconeHabito nome={habito.icone} cor={feito ? '#FFFFFF' : corDoDesenho(habito.cor)} />
     </>
   );
   const classeIcone = `flex size-10 shrink-0 items-center justify-center rounded-xl border-0 p-0 transition-colors duration-300 ${
-    feito ? 'bg-verde' : 'bg-verde-claro'
-  } ${superada ? 'shadow-[0_0_0_3px_var(--color-ouro)]' : ''}`;
+    superada ? 'shadow-[0_0_0_3px_var(--color-ouro)]' : ''
+  }`;
+  // RF-30f: o ícone usa a cor do hábito; feito = bloco cheio na cor, desenho branco.
+  const estiloIcone = { background: feito ? habito.cor : `color-mix(in srgb, ${habito.cor} 20%, transparent)` };
 
   const corpo = (
     <>
@@ -159,11 +162,11 @@ export function LinhaHabito({
       } ${feito ? 'bg-verde-linha' : ''}`}
     >
       {temRegistros ? (
-        <button type="button" aria-label={ariaRegistros} onClick={aoAbrirRegistros} className={classeIcone}>
+        <button type="button" aria-label={ariaRegistros} onClick={aoAbrirRegistros} className={classeIcone} style={estiloIcone}>
           {icone}
         </button>
       ) : (
-        <div aria-hidden="true" className={classeIcone}>
+        <div aria-hidden="true" className={classeIcone} style={estiloIcone}>
           {icone}
         </div>
       )}

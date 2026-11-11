@@ -10,6 +10,26 @@ export const OUTRA_UNIDADE = '__outra__';
 /** Paleta de 8 cores de meio-tom, legíveis nos temas claro e escuro. */
 export const PALETA_CORES = ['#0B7A43', '#1F6FB5', '#7A4FC2', '#C2410C', '#B4235A', '#0E8A8A', '#8A6D00', '#5C6670'];
 
+/** RF-30d: categorias prontas. */
+export const CATEGORIAS_PRONTAS = ['Geral', 'Saúde', 'Exercício', 'Alimentação', 'Espiritual', 'Estudos', 'Trabalho', 'Casa', 'Finanças', 'Social'];
+
+/** Prontas + as já usadas + a atual, sem repetir (ignora maiúsculas e espaços). */
+export function listarCategorias(usadas: string[], atual = ''): string[] {
+  const vistas = new Set<string>();
+  const lista: string[] = [];
+  for (const bruta of [...CATEGORIAS_PRONTAS, ...usadas, atual]) {
+    const c = bruta.trim().slice(0, 30);
+    const chave = c.toLowerCase();
+    if (!c || vistas.has(chave)) continue;
+    vistas.add(chave);
+    lista.push(c);
+  }
+  return lista;
+}
+
+/** Cor do desenho do ícone: a cor do hábito, clareada no modo escuro (--clareia-icone, ver index.css). */
+export const corDoDesenho = (cor: string) => `color-mix(in srgb, ${cor}, white var(--clareia-icone, 0%))`;
+
 export const NOMES_DIAS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
 
 export const TIPOS: { tipo: TipoHabito; nome: string; ajuda: string }[] = [
@@ -46,7 +66,7 @@ export function formularioVazio(): FormHabito {
     descricao: '',
     icone: 'target',
     cor: PALETA_CORES[0],
-    categoria: 'geral',
+    categoria: 'Geral',
     tipo: 'quantidade',
     unidade: 'min',
     unidadeOutra: '',

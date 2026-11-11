@@ -5,7 +5,7 @@ import { IconeHabito } from '../components/icones';
 import { operacoes } from '../database/operacoes';
 import { useDataHoje, useLive } from '../hooks/useLive';
 import { versaoVigente, type HabitoCompleto } from '../services/calculos';
-import { descreverVersao } from '../services/habitos';
+import { corDoDesenho, descreverVersao } from '../services/habitos';
 import { CONFIG_PADRAO } from '../types';
 
 type Edicao = { modo: 'novo' } | { modo: 'editar'; id: string };
@@ -32,7 +32,7 @@ function Linha({ h, hoje, aoAbrir, aoReativar }: { h: HabitoCompleto; hoje: stri
           className="flex size-10 shrink-0 items-center justify-center rounded-xl"
           style={{ background: `color-mix(in srgb, ${h.habito.cor} 20%, transparent)` }}
         >
-          <IconeHabito nome={h.habito.icone} cor={h.habito.cor} />
+          <IconeHabito nome={h.habito.icone} cor={corDoDesenho(h.habito.cor)} />
         </span>
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="truncate text-[16px] font-semibold leading-tight">{h.habito.nome}</span>
@@ -129,6 +129,7 @@ export default function Habitos() {
           key={edicao.modo === 'editar' ? edicao.id : 'novo'}
           habito={editado}
           hoje={hoje}
+          categoriasUsadas={(habitos ?? []).map((h) => h.habito.categoria)}
           aoFechar={() => {
             setEdicao(null);
             setConfirmandoArquivar(false);

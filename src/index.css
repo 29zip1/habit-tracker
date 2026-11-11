@@ -2,6 +2,11 @@
 
 /* Cores do protótipo (seção 15 da especificação), como variáveis.
    O modo escuro troca só estes valores. */
+/* Quanto clarear o desenho colorido dos ícones (RF-30f): nada no claro, metade no escuro. */
+:root {
+  --clareia-icone: 0%;
+}
+
 @theme {
   --color-fundo: #f7f8f6;
   --color-cartao: #ffffff;
@@ -38,6 +43,7 @@
 /* Modo escuro (paleta aprovada em 10/11/2026). Só troca os valores acima. */
 :root[data-tema='escuro'] {
   color-scheme: dark;
+  --clareia-icone: 55%;
   --color-fundo: #101412;
   --color-cartao: #1a201c;
   --color-borda: #2b332e;

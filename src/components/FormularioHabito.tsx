@@ -14,11 +14,12 @@ import {
   formularioVazio,
   habitoParaFormulario,
   lerFormulario,
+  listarCategorias,
   versaoMudou,
   type FormHabito,
 } from '../services/habitos';
 import type { DataLocal, TipoHabito } from '../types';
-import { ICONES_HABITO, IconeHabito } from './icones';
+import { GRUPOS_ICONES, IconeHabito } from './icones';
 
 interface Props {
   /** undefined = criar um hábito novo. */
@@ -26,15 +27,17 @@ interface Props {
   hoje: DataLocal;
   aoFechar: () => void;
   aoArquivar?: () => void;
+  /** Categorias já usadas em outros hábitos (viram botões). */
+  categoriasUsadas?: string[];
 }
 
 const campoTexto =
-  'box-border h-12 w-full rounded-xl border-[1.5px] border-cinza-anel bg-cartao px-3 text-[16px] text-texto';
+  'box-border h-12 w-full min-w-0 max-w-full rounded-xl border-[1.5px] border-cinza-anel bg-cartao px-3 text-[16px] text-texto';
 const rotulo = 'text-[14px] font-semibold text-texto';
 const ajuda = 'text-[13px] text-texto2';
 
 /** Criar e editar hábito (RF-30, RF-31). Tela cheia, com rolagem. */
-export function FormularioHabito({ habito, hoje, aoFechar, aoArquivar }: Props) {
+export function FormularioHabito({ habito, hoje, aoFechar, aoArquivar, categoriasUsadas = [] }: Props) {
   const editando = habito !== undefined;
   const versaoAtual = useMemo(() => {
     if (!habito) return undefined;
@@ -47,6 +50,7 @@ export function FormularioHabito({ habito, hoje, aoFechar, aoArquivar }: Props) 
   const [f, setF] = useState<FormHabito>(() =>
     habito && versaoAtual ? habitoParaFormulario(habito.habito, versaoAtual) : formularioVazio(),
   );
+  const [escrevendoCategoria, setEscrevendoCategoria] = useState(false);
   const [erro, setErro] = useState('');
   const [salvando, setSalvando] = useState(false);
   const [perguntaVigencia, setPerguntaVigencia] = useState(false);
@@ -69,6 +73,7 @@ export function FormularioHabito({ habito, hoje, aoFechar, aoArquivar }: Props) 
     setErro('');
   }
 
+  const categorias = listarCategorias(categoriasUsadas, escrevendoCategoria ? '' : f.categoria);
   const temBlocos = f.tipo === 'quantidade' || f.tipo === 'limite';
   const temUnidade = temBlocos;
 
@@ -117,7 +122,7 @@ export function FormularioHabito({ habito, hoje, aoFechar, aoArquivar }: Props) 
 
   return (
     <div
-      className="fixed inset-x-0 top-0 z-40 flex flex-col bg-fundo"
+      className="fixed inset-x-0 top-0 z-40 flex touch-pan-y flex-col overflow-hidden bg-fundo"
       style={area ? { top: area.top, height: area.height } : { bottom: 0 }}
     >
       <div
@@ -136,9 +141,20 @@ export function FormularioHabito({ habito, hoje, aoFechar, aoArquivar }: Props) 
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6">
-          <div className="flex flex-col gap-5">
-            <label className="flex flex-col gap-1.5">
+        <div
+          className="min-h-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-contain px-4 pb-6"
+          onFocus={(e) => {
+            // Teclado aberto: leva o campo tocado para o meio da área visível,
+            // para a pessoa ver o que está digitando.
+            const campo = e.target;
+            if (!(campo instanceof HTMLInputElement || campo instanceof HTMLSelectElement)) return;
+            for (const ms of [150, 450]) {
+              window.setTimeout(() => campo.scrollIntoView({ block: 'center', behavior: 'smooth' }), ms);
+            }
+          }}
+        >
+          <div className="flex min-w-0 flex-col gap-5">
+            <label className="flex min-w-0 flex-col gap-1.5">
               <span className={rotulo}>Nome</span>
               <input
                 type="text"
@@ -150,7 +166,7 @@ export function FormularioHabito({ habito, hoje, aoFechar, aoArquivar }: Props) 
               />
             </label>
 
-            <label className="flex flex-col gap-1.5">
+            <label className="flex min-w-0 flex-col gap-1.5">
               <span className={rotulo}>Descrição (opcional)</span>
               <input
                 type="text"
@@ -187,7 +203,7 @@ export function FormularioHabito({ habito, hoje, aoFechar, aoArquivar }: Props) 
             {f.tipo !== 'conclusao' && (
               <div className="flex flex-col gap-3">
                 {temUnidade && (
-                  <label className="flex flex-col gap-1.5">
+                  <label className="flex min-w-0 flex-col gap-1.5">
                     <span className={rotulo}>Unidade</span>
                     <select
                       value={f.unidade}
@@ -215,7 +231,7 @@ export function FormularioHabito({ habito, hoje, aoFechar, aoArquivar }: Props) 
                   </label>
                 )}
 
-                <label className="flex flex-col gap-1.5">
+                <label className="flex min-w-0 flex-col gap-1.5">
                   <span className={rotulo}>
                     {f.tipo === 'semanal' ? 'Quantas vezes por semana' : f.tipo === 'limite' ? 'Limite por dia' : 'Meta por dia'}
                   </span>
@@ -346,22 +362,27 @@ export function FormularioHabito({ habito, hoje, aoFechar, aoArquivar }: Props) 
 
             <fieldset className="flex flex-col gap-2 border-0 p-0">
               <legend className={`${rotulo} mb-1.5`}>Ícone</legend>
-              <div className="grid grid-cols-5 gap-2">
-                {Object.keys(ICONES_HABITO).map((nome) => (
-                  <button
-                    key={nome}
-                    type="button"
-                    aria-label={`Ícone ${nome}`}
-                    aria-pressed={f.icone === nome}
-                    onClick={() => mudar('icone', nome)}
-                    className={`flex h-12 items-center justify-center rounded-xl border-[1.5px] p-0 ${
-                      f.icone === nome ? 'border-verde-texto bg-verde-claro' : 'border-cinza-anel bg-cartao'
-                    }`}
-                  >
-                    <IconeHabito nome={nome} cor="var(--color-texto)" />
-                  </button>
-                ))}
-              </div>
+              {GRUPOS_ICONES.map((g) => (
+                <div key={g.nome} className="flex flex-col gap-1.5">
+                  <div className="text-[13px] font-semibold text-texto2">{g.nome}</div>
+                  <div className="grid grid-cols-5 gap-2">
+                    {Object.keys(g.icones).map((nome) => (
+                      <button
+                        key={nome}
+                        type="button"
+                        aria-label={`Ícone ${nome}`}
+                        aria-pressed={f.icone === nome}
+                        onClick={() => mudar('icone', nome)}
+                        className={`flex h-12 items-center justify-center rounded-xl border-[1.5px] p-0 ${
+                          f.icone === nome ? 'border-verde-texto bg-verde-claro' : 'border-cinza-anel bg-cartao'
+                        }`}
+                      >
+                        <IconeHabito nome={nome} cor="var(--color-texto)" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </fieldset>
 
             <fieldset className="flex flex-col gap-2 border-0 p-0">
@@ -379,28 +400,66 @@ export function FormularioHabito({ habito, hoje, aoFechar, aoArquivar }: Props) 
                   />
                 ))}
               </div>
-              <p className={ajuda}>A cor aparece na aba Hábitos. Na tela Hoje o verde continua significando "feito".</p>
+              <p className={ajuda}>A cor aparece no ícone do hábito, na aba Hábitos e na tela Hoje.</p>
             </fieldset>
 
-            <label className="flex flex-col gap-1.5">
-              <span className={rotulo}>Categoria</span>
-              <input
-                type="text"
-                value={f.categoria}
-                maxLength={30}
-                onChange={(e) => mudar('categoria', e.target.value)}
-                className={campoTexto}
-              />
-            </label>
+            <fieldset className="flex min-w-0 flex-col gap-2 border-0 p-0">
+              <legend className={`${rotulo} mb-1.5`}>Categoria</legend>
+              <div className="flex flex-wrap gap-2">
+                {categorias.map((c) => {
+                  const marcada = c.toLowerCase() === f.categoria.trim().toLowerCase() && !escrevendoCategoria;
+                  return (
+                    <button
+                      key={c}
+                      type="button"
+                      aria-pressed={marcada}
+                      onClick={() => {
+                        setEscrevendoCategoria(false);
+                        mudar('categoria', c);
+                      }}
+                      className={`h-11 rounded-full border-[1.5px] px-4 text-[14px] font-semibold ${
+                        marcada ? 'border-verde-texto bg-verde-claro text-verde-texto' : 'border-cinza-anel bg-cartao text-texto'
+                      }`}
+                    >
+                      {c}
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  aria-pressed={escrevendoCategoria}
+                  onClick={() => {
+                    setEscrevendoCategoria(true);
+                    mudar('categoria', '');
+                  }}
+                  className={`h-11 rounded-full border-[1.5px] px-4 text-[14px] font-semibold ${
+                    escrevendoCategoria ? 'border-verde-texto bg-verde-claro text-verde-texto' : 'border-verde-texto bg-transparent text-verde-texto'
+                  }`}
+                >
+                  + Outra
+                </button>
+              </div>
+              {escrevendoCategoria && (
+                <input
+                  type="text"
+                  aria-label="Nome da nova categoria"
+                  value={f.categoria}
+                  maxLength={30}
+                  placeholder="Ex.: Leitura"
+                  onChange={(e) => mudar('categoria', e.target.value)}
+                  className={campoTexto}
+                />
+              )}
+            </fieldset>
 
-            <div className="grid grid-cols-2 gap-3">
-              <label className="flex flex-col gap-1.5">
+            <div className="flex min-w-0 flex-col gap-5">
+              <label className="flex min-w-0 flex-col gap-1.5">
                 <span className={rotulo}>Começa em (opcional)</span>
-                <input type="date" value={f.dataInicial} onChange={(e) => mudar('dataInicial', e.target.value)} className={campoTexto} />
+                <input type="date" value={f.dataInicial} onChange={(e) => mudar('dataInicial', e.target.value)} className={`${campoTexto} appearance-none text-left`} />
               </label>
-              <label className="flex flex-col gap-1.5">
+              <label className="flex min-w-0 flex-col gap-1.5">
                 <span className={rotulo}>Termina em (opcional)</span>
-                <input type="date" value={f.dataFinal} onChange={(e) => mudar('dataFinal', e.target.value)} className={campoTexto} />
+                <input type="date" value={f.dataFinal} onChange={(e) => mudar('dataFinal', e.target.value)} className={`${campoTexto} appearance-none text-left`} />
               </label>
             </div>
 
@@ -473,25 +532,27 @@ export function FormularioHabito({ habito, hoje, aoFechar, aoArquivar }: Props) 
             >
               Hoje ({dataCurta(hoje)})
             </button>
-            <button
-              type="button"
-              aria-pressed={vigencia === 'outra'}
-              onClick={() => setVigencia('outra')}
-              className={`min-h-12 rounded-xl border-[1.5px] px-3 text-left text-[15px] font-semibold ${
+            {/* O seletor de data fica invisível por cima do botão: tocar em "Outra data" já abre o calendário. */}
+            <div
+              className={`relative flex min-h-12 items-center overflow-hidden rounded-xl border-[1.5px] px-3 text-[15px] font-semibold ${
                 vigencia === 'outra' ? 'border-verde-texto bg-verde-claro' : 'border-cinza-anel bg-cartao'
               }`}
             >
-              Outra data
-            </button>
-            {vigencia === 'outra' && (
+              {vigencia === 'outra' && ehDataValida(outraData)
+                ? `Outra data: ${outraData.slice(8, 10)}/${outraData.slice(5, 7)}/${outraData.slice(0, 4)}`
+                : 'Outra data (toque para escolher)'}
               <input
                 type="date"
-                aria-label="Data de início da mudança"
+                aria-label="Outra data: escolher a data de início da mudança"
                 value={outraData}
-                onChange={(e) => setOutraData(e.target.value)}
-                className={campoTexto}
+                onFocus={() => setVigencia('outra')}
+                onChange={(e) => {
+                  setOutraData(e.target.value);
+                  setVigencia('outra');
+                }}
+                className="absolute inset-0 h-full w-full min-w-0 max-w-full cursor-pointer appearance-none opacity-0"
               />
-            )}
+            </div>
             <div className="flex gap-2.5">
               <button
                 type="button"
