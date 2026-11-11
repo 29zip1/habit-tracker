@@ -12,6 +12,7 @@ import { estaInstalado } from './services/ambiente';
 import type { ArquivoBackup } from './services/backup';
 import Ajustes from './screens/Ajustes';
 import EmBreve from './screens/EmBreve';
+import Habitos from './screens/Habitos';
 import Hoje from './screens/Hoje';
 
 function AppPronto() {
@@ -53,10 +54,10 @@ function AppPronto() {
       )}
 
       <main className="min-h-0 flex-1">
-        {aba === 'hoje' && <Hoje irParaAjustes={() => setAba('ajustes')} />}
+        {aba === 'hoje' && <Hoje irParaAjustes={() => setAba('ajustes')} irParaHabitos={() => setAba('habitos')} />}
         {aba === 'historico' && <EmBreve titulo="Histórico" fase="Fase 6" />}
         {aba === 'evolucao' && <EmBreve titulo="Evolução" fase="Fase 7" />}
-        {aba === 'habitos' && <EmBreve titulo="Hábitos" fase="Fase 5" />}
+        {aba === 'habitos' && <Habitos />}
         {aba === 'ajustes' && <Ajustes atualizacao={atualizacao} />}
       </main>
 

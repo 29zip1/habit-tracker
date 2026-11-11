@@ -183,6 +183,23 @@ export class Operacoes {
     await this.db.habitos.update(id, { ...campos, editadoEm: agora() });
   }
 
+  /**
+   * RF-31: salva a edição do formulário. Os campos do hábito valem na hora; a
+   * configuração (`versao`, só quando mudou) vira uma nova versão a partir de
+   * `vigenteDesde`, sem tocar no passado. Tudo ou nada.
+   */
+  async salvarEdicao(
+    id: string,
+    campos: Parameters<Operacoes['editarHabito']>[1],
+    versao: DadosVersao | null,
+    vigenteDesde: DataLocal,
+  ): Promise<void> {
+    await this.db.transaction('rw', this.db.habitos, this.db.versoes, async () => {
+      await this.editarHabito(id, campos);
+      if (versao) await this.adicionarVersao(id, vigenteDesde, versao);
+    });
+  }
+
   /** RF-32: esconde o hábito a partir de uma data; o histórico fica. */
   async arquivarHabito(id: string, aPartirDe: DataLocal): Promise<void> {
     await this.db.habitos.update(id, { status: 'arquivado', arquivadoEm: aPartirDe, editadoEm: agora() });

@@ -31,7 +31,7 @@ const botaoSecundario =
   'h-11 rounded-full border-[1.5px] border-verde-texto bg-transparent px-[22px] text-[14px] font-semibold text-verde-texto';
 const botaoLink = 'h-11 rounded-full border-0 bg-transparent px-3 text-[14px] font-semibold text-verde-texto underline';
 
-export default function Hoje({ irParaAjustes }: { irParaAjustes: () => void }) {
+export default function Hoje({ irParaAjustes, irParaHabitos }: { irParaAjustes: () => void; irParaHabitos: () => void }) {
   const config = useLive(() => operacoes.lerConfig(), [], CONFIG_PADRAO);
   const hoje = useDataHoje(config.inicioDoDiaHora);
   const [escolhida, setEscolhida] = useState<DataLocal | null>(null);
@@ -297,8 +297,15 @@ export default function Hoje({ irParaAjustes }: { irParaAjustes: () => void }) {
             <p>Nenhum hábito programado para este dia.</p>
             <button
               type="button"
+              onClick={irParaHabitos}
+              className="mt-3 h-11 rounded-full border-0 bg-verde px-5 text-[14px] font-semibold text-white"
+            >
+              Criar meu primeiro hábito
+            </button>
+            <button
+              type="button"
               onClick={irParaAjustes}
-              className="mt-3 h-11 rounded-full border-[1.5px] border-verde-texto bg-cartao px-5 text-[14px] font-semibold text-verde-texto"
+              className="mt-2 h-11 rounded-full border-[1.5px] border-verde-texto bg-cartao px-5 text-[14px] font-semibold text-verde-texto"
             >
               Carregar hábitos de exemplo (Ajustes)
             </button>
