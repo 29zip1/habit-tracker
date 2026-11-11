@@ -78,8 +78,9 @@ export function arredondar(valor: number): number {
   return Math.round(valor * 1e6) / 1e6;
 }
 
-export function entraNoPercentualPadrao(tipo: TipoHabito): boolean {
-  return tipo === 'conclusao' || tipo === 'quantidade';
+/** RF-C11: todo hábito programado para o dia entra no percentual, de qualquer tipo. */
+export function entraNoPercentualPadrao(_tipo: TipoHabito): boolean {
+  return true;
 }
 
 /**
@@ -133,15 +134,10 @@ export function limiteAtingido(total: number, limite: number): boolean {
 }
 
 /**
- * RF-C1 e RF-C9: fração de um hábito para o percentual do dia.
- * Retorna null quando o hábito fica fora da conta (limite com dia aberto).
+ * RF-C1 e RF-C11: fração de um hábito para o percentual do dia (sempre de 0 a 1).
+ * Limite: sobe até o valor proposto; passou do valor, vira 0.
  */
-export function fracaoDoHabito(
-  versao: VersaoHabito,
-  total: number,
-  marcado: boolean,
-  diaFechado: boolean,
-): number | null {
+export function fracaoDoHabito(versao: VersaoHabito, total: number, marcado: boolean): number {
   switch (versao.tipo) {
     case 'conclusao':
     case 'semanal':
@@ -149,8 +145,8 @@ export function fracaoDoHabito(
     case 'quantidade':
       return versao.meta > 0 ? Math.min(arredondar(total) / versao.meta, 1) : 0;
     case 'limite':
-      if (!diaFechado) return null;
-      return statusDoLimite(total, versao.meta) === 'dentro' ? 1 : 0;
+      if (versao.meta <= 0 || statusDoLimite(total, versao.meta) === 'acima') return 0;
+      return arredondar(total) / versao.meta;
   }
 }
 
@@ -194,7 +190,7 @@ export function calcularDia(e: EntradaDia): ResumoDia {
       registrosDoDia.filter((r) => r.habitoId === h.habito.id).reduce((s, r) => s + r.valor, 0),
     );
     const marcado = marcacoesDoDia.some((m) => m.habitoId === h.habito.id);
-    const fracao = fracaoDoHabito(v, total, marcado, fechado);
+    const fracao = fracaoDoHabito(v, total, marcado);
 
     const r: ResumoHabito = {
       ...vazio,

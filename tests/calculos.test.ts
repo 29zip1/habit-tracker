@@ -98,14 +98,61 @@ describe('RF-C2 · percentual do dia', () => {
     expect(percentualDasFracoes([])).toBeNull();
   });
 
-  it('limite e semanal ficam fora do percentual por padrão', () => {
+  it('RF-C11: todos os tipos entram no percentual por padrão', () => {
     const med = habito({ tipo: 'conclusao' });
     const treino = habito({ tipo: 'semanal', meta: 5 });
     const kcal = habito({ tipo: 'limite', meta: 1500, blocos: [300] });
     const r = calcularDia(entrada({ habitos: [med, treino, kcal], marcacoes: [marca(med, HOJE)] }));
+    expect(r.totalNoPercentual).toBe(3);
+    expect(r.percentual).toBe(33);
+    expect(r.foraDoPercentual).toEqual([]);
+  });
+
+  it('T-C11c: 5 hábitos, água 1.000 de 2.000 e o resto em 0 = 10%', () => {
+    const agua = habito({ tipo: 'quantidade', meta: 2000 });
+    const outros = [
+      habito({ tipo: 'conclusao' }),
+      habito({ tipo: 'semanal', meta: 5 }),
+      habito({ tipo: 'quantidade', meta: 30 }),
+      habito({ tipo: 'limite', meta: 1500 }),
+    ];
+    const r = calcularDia(entrada({ habitos: [agua, ...outros], registros: [reg(agua, 1000, HOJE)] }));
+    expect(r.percentual).toBe(10);
+  });
+
+  it('T-C11d: 5 hábitos, calorias 750 de 1.500 e o resto em 0 = 10%', () => {
+    const kcal = habito({ tipo: 'limite', meta: 1500 });
+    const outros = [
+      habito({ tipo: 'conclusao' }),
+      habito({ tipo: 'semanal', meta: 5 }),
+      habito({ tipo: 'quantidade', meta: 30 }),
+      habito({ tipo: 'quantidade', meta: 2000 }),
+    ];
+    const r = calcularDia(entrada({ habitos: [kcal, ...outros], registros: [reg(kcal, 750, HOJE)] }));
+    expect(r.percentual).toBe(10);
+  });
+
+  it('T-C11e: hábito com a opção "entra no percentual" desligada fica fora da média', () => {
+    const kcal = habito({ tipo: 'limite', meta: 1500, entra: false });
+    const med = habito({ tipo: 'conclusao' });
+    const r = calcularDia(entrada({ habitos: [med, kcal], marcacoes: [marca(med, HOJE)] }));
     expect(r.totalNoPercentual).toBe(1);
     expect(r.percentual).toBe(100);
-    expect(r.foraDoPercentual).toEqual([treino.habito.id, kcal.habito.id]);
+  });
+
+  it('cada tipo, sozinho, faz o percentual subir quando é feito', () => {
+    const casos = [
+      { h: habito({ tipo: 'conclusao' }), feito: (h: ReturnType<typeof habito>) => ({ marcacoes: [marca(h, HOJE)] }) },
+      { h: habito({ tipo: 'semanal', meta: 5 }), feito: (h: ReturnType<typeof habito>) => ({ marcacoes: [marca(h, HOJE)] }) },
+      { h: habito({ tipo: 'quantidade', meta: 30 }), feito: (h: ReturnType<typeof habito>) => ({ registros: [reg(h, 15, HOJE)] }) },
+      { h: habito({ tipo: 'limite', meta: 1500 }), feito: (h: ReturnType<typeof habito>) => ({ registros: [reg(h, 300, HOJE)] }) },
+    ];
+    for (const c of casos) {
+      const par = habito({ tipo: 'conclusao' }); // outro hábito, para a média ter 2
+      const antes = calcularDia(entrada({ habitos: [c.h, par] })).percentual as number;
+      const depois = calcularDia(entrada({ habitos: [c.h, par], ...c.feito(c.h) })).percentual as number;
+      expect(depois, c.h.versoes[0].tipo).toBeGreaterThan(antes);
+    }
   });
 });
 
@@ -130,11 +177,12 @@ describe('RF-C3 · meta batida e superada', () => {
 describe('RF-C4 e RF-C9 · limite', () => {
   const kcal = () => habito({ tipo: 'limite', meta: 1500, blocos: [300] });
 
-  it('T-C4: calorias 0 kcal no início do dia não contam no percentual', () => {
+  it('T-C4: calorias 0 kcal no início do dia entram na conta com fração 0', () => {
     const k = kcal();
     const med = habito({ tipo: 'conclusao' });
     const r = calcularDia(entrada({ habitos: [med, k] }));
-    expect(r.totalNoPercentual).toBe(1);
+    expect(r.totalNoPercentual).toBe(2);
+    expect(r.habitos[1].fracao).toBe(0);
     expect(r.percentual).toBe(0);
   });
 
@@ -143,35 +191,32 @@ describe('RF-C4 e RF-C9 · limite', () => {
     expect(statusDoLimite(1501, 1500)).toBe('acima');
   });
 
-  it('T-C9a: limite ligado no percentual, dia aberto: fica fora da conta', () => {
-    const k = habito({ tipo: 'limite', meta: 1500, blocos: [300], entra: true });
-    const med = habito({ tipo: 'conclusao' });
-    const r = calcularDia(
-      entrada({ habitos: [med, k], marcacoes: [marca(med, HOJE)], registros: [reg(k, 1200, HOJE)] }),
-    );
-    expect(r.habitos[1].fracao).toBeNull();
-    expect(r.totalNoPercentual).toBe(1);
+  it('T-C11a: limite 1.500 com total 0 / 750 / 1.500, dia aberto e fechado: fração 0 / 0,5 / 1', () => {
+    for (const fechado of [false, true]) {
+      const fracoes = [0, 750, 1500].map((total) => {
+        const k = habito({ tipo: 'limite', meta: 1500, blocos: [300] });
+        const registros = total > 0 ? [reg(k, total, HOJE)] : [];
+        return calcularDia(entrada({ habitos: [k], registros, dia: dia(HOJE, { fechado }) })).habitos[0].fracao;
+      });
+      expect(fracoes).toEqual([0, 0.5, 1]);
+    }
+  });
+
+  it('T-C11b: limite 1.500 com 1.500,1 e 1.800: fração 0 e aviso de acima do limite', () => {
+    for (const total of [1500.1, 1800]) {
+      const k = habito({ tipo: 'limite', meta: 1500, blocos: [300] });
+      const r = calcularDia(entrada({ habitos: [k], registros: [reg(k, total, HOJE)] }));
+      expect(r.habitos[0].fracao).toBe(0);
+      expect(r.habitos[0].statusLimite).toBe('acima');
+      expect(r.percentual).toBe(0);
+    }
+  });
+
+  it('calorias exatamente no valor: 100% e dia completo', () => {
+    const k = habito({ tipo: 'limite', meta: 1500, blocos: [300] });
+    const r = calcularDia(entrada({ habitos: [k], registros: [reg(k, 1500, HOJE)] }));
     expect(r.percentual).toBe(100);
-  });
-
-  it('T-C9b: mesmo caso, dia fechado e 1.200 de 1.500: vale 1', () => {
-    const k = habito({ tipo: 'limite', meta: 1500, blocos: [300], entra: true });
-    const r = calcularDia(
-      entrada({ habitos: [k], registros: [reg(k, 1200, HOJE)], dia: dia(HOJE, { fechado: true }) }),
-    );
-    expect(r.fechado).toBe(true);
-    expect(r.habitos[0].fracao).toBe(1);
     expect(r.estado).toBe('completo');
-  });
-
-  it('T-C9c: dia fechado e 1.800 de 1.500: vale 0', () => {
-    const k = habito({ tipo: 'limite', meta: 1500, blocos: [300], entra: true });
-    const r = calcularDia(
-      entrada({ habitos: [k], registros: [reg(k, 1800, HOJE)], dia: dia(HOJE, { fechado: true }) }),
-    );
-    expect(r.habitos[0].fracao).toBe(0);
-    expect(r.habitos[0].statusLimite).toBe('acima');
-    expect(r.percentual).toBe(0);
   });
 
   it('T-20b: dia anterior é tratado como fechado sem ter sido finalizado', () => {
@@ -213,13 +258,14 @@ describe('RF-14b · check do hábito de limite', () => {
     expect(limiteAtingido(0.1 + 0.2, 0.3)).toBe(true);
   });
 
-  it('T-14h: o check não muda o percentual do dia', () => {
+  it('T-14h (RF-C11): com o check, o hábito vale 100% e o percentual sobe', () => {
     const k = kcal();
     const med = habito({ tipo: 'conclusao' });
     const base = entrada({ habitos: [med, k], marcacoes: [marca(med, HOJE)] });
     const sem = calcularDia(base);
     const com1500 = calcularDia({ ...base, registros: [reg(k, 1500, HOJE)] });
-    expect(com1500.percentual).toBe(sem.percentual);
+    expect(sem.percentual).toBe(50);
+    expect(com1500.percentual).toBe(100);
   });
 });
 

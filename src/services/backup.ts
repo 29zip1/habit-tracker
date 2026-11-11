@@ -189,6 +189,7 @@ function validarConfig(c: unknown): string | null {
   if (!ehNumero(c.inicioSemana) || c.inicioSemana < 0 || c.inicioSemana > 6) return 'início da semana inválido';
   if (typeof c.dicaVisivel !== 'boolean') return 'opção da dica inválida';
   if (!ehNumero(c.avisoBackupDias) || c.avisoBackupDias < 1) return 'aviso de backup inválido';
+  if (c.avisoBackupFixo !== undefined && typeof c.avisoBackupFixo !== 'boolean') return 'aviso fixo inválido';
   return null;
 }
 

@@ -55,7 +55,7 @@ describe('T-66b e RF-71 · migração com cópia antes de migrar', () => {
     const r = await abrirBancoComSeguranca(db, '1.0.0', HOJE);
 
     expect(r).toEqual({ ok: true, migrou: true });
-    expect(db.verno).toBe(3);
+    expect(db.verno).toBe(4);
     expect(await db.habitos.count()).toBe(1);
     expect(await db.registros.count()).toBe(2);
     expect((await db.teste.get('contador'))?.valor).toBe(4);
@@ -65,6 +65,28 @@ describe('T-66b e RF-71 · migração com cópia antes de migrar', () => {
     expect(copias[0]).toMatchObject({ motivo: 'antes-migrar', habitos: 1, registros: 2 });
     const valida = await validarBackup(copias[0].conteudo);
     expect(valida.ok).toBe(true);
+  });
+
+  it('RF-C11: a migração liga "entra no percentual" em Treino e Calorias, sem apagar nada', async () => {
+    const nome = nomeNovo();
+    await bancoAntigoV2(nome, true);
+    const antigo = new Dexie(nome);
+    antigo.version(2).stores({ teste: 'id', habitos: 'id, status, ordem', versoes: 'id, habitoId, [habitoId+vigenteDesde]', registros: 'id, habitoId, data, [habitoId+data]', marcacoes: 'id, data, &[habitoId+data]', dias: 'data', config: 'id', meta: 'chave' });
+    await antigo.open();
+    await antigo.table('versoes').bulkAdd([
+      { id: 'v2', habitoId: 'h2', vigenteDesde: '2026-01-01', tipo: 'semanal', unidade: 'vezes', meta: 5, blocos: [], frequencia: { tipo: 'todos' }, entraNoPercentual: false, passoAjuste: 1 },
+      { id: 'v3', habitoId: 'h3', vigenteDesde: '2026-01-01', tipo: 'limite', unidade: 'kcal', meta: 1500, blocos: [300], frequencia: { tipo: 'todos' }, entraNoPercentual: false, passoAjuste: 50 },
+    ]);
+    antigo.close();
+
+    const db = new BancoHabitos(nome);
+    abertos.push(db);
+    await abrirBancoComSeguranca(db, '1.0.0', HOJE);
+
+    const versoes = await db.versoes.toArray();
+    expect(versoes).toHaveLength(3);
+    expect(versoes.every((v) => v.entraNoPercentual === true)).toBe(true);
+    expect(await db.registros.count()).toBe(2);
   });
 
   it('abrir de novo (já migrado) não cria outra cópia', async () => {
@@ -110,7 +132,7 @@ describe('T-66b e RF-71 · migração com cópia antes de migrar', () => {
     abertos.push(db);
     const r = await abrirBancoComSeguranca(db, '1.0.0', HOJE);
     expect(r).toEqual({ ok: true, migrou: false });
-    expect((await db.meta.get('versaoFormato'))?.valor).toBe(3);
+    expect((await db.meta.get('versaoFormato'))?.valor).toBe(4);
     expect(await db.meta.get('criadoEm')).toBeTruthy();
   });
 });

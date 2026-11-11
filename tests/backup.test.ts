@@ -38,6 +38,16 @@ describe('T-61 · gerar o arquivo de backup', () => {
     expect(arquivo.integridade.startsWith('sha256:')).toBe(true);
   });
 
+  it('T-62c: a opção "aviso fixo" vai no backup, e valor que não é verdadeiro/falso é recusado', async () => {
+    const { arquivo } = await backupDeTeste();
+    const comFixo = { ...arquivo, dados: { ...arquivo.dados, config: { ...arquivo.dados.config!, avisoBackupFixo: true } } };
+    expect(JSON.parse(serializarBackup(comFixo)).dados.config.avisoBackupFixo).toBe(true);
+    const ruim = adulterar(serializarBackup(arquivo), (o) => {
+      o.dados.config.avisoBackupFixo = 'sim';
+    });
+    expect((await validarBackup(ruim)).ok).toBe(false);
+  });
+
   it('o nome do arquivo leva a data e a hora', () => {
     expect(nomeArquivoBackup(new Date(2026, 10, 10, 19, 25))).toBe('habit-tracker-backup-2026-11-10-1925.json');
     expect(nomeArquivoBackup(new Date(2026, 0, 5, 7, 3), 'csv', 'habit-tracker-registros')).toBe(

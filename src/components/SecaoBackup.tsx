@@ -186,6 +186,21 @@ export function SecaoBackup() {
           </select>
         </label>
 
+        <label className="mt-2 flex min-h-11 items-center justify-between gap-3 text-[15px]">
+          <span>
+            Manter o aviso na tela Hoje até eu fazer o backup
+            <span className="block text-[13px] text-texto2">
+              Sem o botão &quot;Depois&quot;: a faixa só some quando o backup é salvo.
+            </span>
+          </span>
+          <input
+            type="checkbox"
+            checked={config.avisoBackupFixo === true}
+            onChange={(e) => void operacoes.salvarConfig({ avisoBackupFixo: e.target.checked })}
+            className="size-6 shrink-0 accent-verde"
+          />
+        </label>
+
         <p className="mt-3 text-[13px] text-texto2">
           Dica: crie no app <strong>Lembretes</strong> do iPhone um lembrete que se repete toda semana:
           &quot;Salvar backup do Habit Tracker&quot;. O app não consegue criar esse lembrete sozinho.

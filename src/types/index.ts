@@ -82,6 +82,8 @@ export interface ConfigApp {
   inicioSemana: number;
   dicaVisivel: boolean;
   avisoBackupDias: number;
+  /** RF-62c: se ligado, a faixa de backup não tem "Depois" e só some com o backup feito. */
+  avisoBackupFixo?: boolean;
   ultimoBackup?: string;
 }
 
@@ -121,4 +123,4 @@ export const CONFIG_PADRAO: ConfigApp = {
   avisoBackupDias: 7,
 };
 
-export const VERSAO_FORMATO_BANCO = 3;
+export const VERSAO_FORMATO_BANCO = 4;

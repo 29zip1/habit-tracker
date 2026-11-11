@@ -1,6 +1,6 @@
 // Fábricas simples para montar hábitos e registros nos testes.
 import type { Dia, Habito, Marcacao, Registro, TipoHabito, VersaoHabito, Frequencia } from '../src/types';
-import type { HabitoCompleto } from '../src/services/calculos';
+import { entraNoPercentualPadrao, type HabitoCompleto } from '../src/services/calculos';
 
 let contador = 0;
 const id = (p: string) => `${p}-${++contador}`;
@@ -35,7 +35,7 @@ export function habito(o: OpcoesHabito): HabitoCompleto {
     criadoEm: '2026-01-01T00:00:00.000Z',
     editadoEm: '2026-01-01T00:00:00.000Z',
   };
-  const padraoEntra = o.tipo === 'conclusao' || o.tipo === 'quantidade';
+  const padraoEntra = entraNoPercentualPadrao(o.tipo); // RF-C11: todos entram
   const v: VersaoHabito = {
     id: id('v'),
     habitoId: hid,

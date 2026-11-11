@@ -23,7 +23,10 @@ export function FaixaBackup() {
     [],
     { temRegistros: false },
   );
-  const [dispensada, setDispensada] = useState(false);
+  const fixo = config.avisoBackupFixo === true;
+  // RF-62c: com o aviso fixo ligado, nada o dispensa; só o backup feito.
+  const [dispensadaPorAgora, setDispensada] = useState(false);
+  const dispensada = !fixo && dispensadaPorAgora;
 
   const agora = new Date();
   const precisa = precisaAvisarBackup({
@@ -61,14 +64,16 @@ export function FaixaBackup() {
         >
           Salvar backup
         </button>
-        <button
-          type="button"
-          aria-label="Dispensar aviso por agora"
-          onClick={() => setDispensada(true)}
-          className="h-11 rounded-full border-0 bg-transparent px-3 text-[14px] text-laranja-texto"
-        >
-          Depois
-        </button>
+        {!fixo && (
+          <button
+            type="button"
+            aria-label="Dispensar aviso por agora"
+            onClick={() => setDispensada(true)}
+            className="h-11 rounded-full border-0 bg-transparent px-3 text-[14px] text-laranja-texto"
+          >
+            Depois
+          </button>
+        )}
       </div>
     </div>
   );

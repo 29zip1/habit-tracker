@@ -43,7 +43,7 @@ describe('T-66 · migração do banco (v1 -> v2) não perde dados', () => {
     // Abre com o app novo (versão 2).
     const { db } = novoBanco(nome);
     await db.open();
-    expect(db.verno).toBe(3);
+    expect(db.verno).toBe(4);
     const contador = await db.teste.get('contador');
     expect(contador?.valor).toBe(7);
     expect(await db.habitos.count()).toBe(0);
@@ -208,12 +208,12 @@ describe('versões do hábito (RF-31 e RF-C7) no banco', () => {
     await expect(ops.criarHabito({ ...cardio, nome: '   ' })).rejects.toThrow();
   });
 
-  it('padrões do percentual: quantidade entra; limite não', async () => {
+  it('RF-C11: padrão do percentual: todos os tipos entram', async () => {
     const { ops } = novoBanco();
     const q = await ops.criarHabito(cardio);
     const l = await ops.criarHabito({ ...cardio, nome: 'Calorias', tipo: 'limite', meta: 1500, blocos: [300] });
     expect(q.versao.entraNoPercentual).toBe(true);
-    expect(l.versao.entraNoPercentual).toBe(false);
+    expect(l.versao.entraNoPercentual).toBe(true);
   });
 });
 
@@ -268,7 +268,7 @@ describe('dia, configurações e metadados', () => {
     await ops.garantirMeta();
     const criado = (await db.meta.get('criadoEm'))?.valor;
     expect(criado).toBeTruthy();
-    expect((await db.meta.get('versaoFormato'))?.valor).toBe(3);
+    expect((await db.meta.get('versaoFormato'))?.valor).toBe(4);
     await ops.garantirMeta(); // de novo não muda a data de criação
     expect((await db.meta.get('criadoEm'))?.valor).toBe(criado);
   });

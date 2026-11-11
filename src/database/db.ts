@@ -59,6 +59,30 @@ export class BancoHabitos extends Dexie {
       meta: 'chave',
       copias: 'id, criadaEm, motivo',
     });
+
+    // Versão 4 (RF-C11): todo hábito entra no percentual do dia. Até aqui limite e
+    // semanal foram gravados como "fora" só pelo padrão (não havia tela para mudar).
+    // Não apaga nada: só liga a opção nas versões que estavam desligadas.
+    this.version(4)
+      .stores({
+        teste: 'id',
+        habitos: 'id, status, ordem',
+        versoes: 'id, habitoId, [habitoId+vigenteDesde]',
+        registros: 'id, habitoId, data, [habitoId+data]',
+        marcacoes: 'id, data, &[habitoId+data]',
+        dias: 'data',
+        config: 'id',
+        meta: 'chave',
+        copias: 'id, criadaEm, motivo',
+      })
+      .upgrade((tx) =>
+        tx
+          .table('versoes')
+          .toCollection()
+          .modify((v: { entraNoPercentual?: boolean }) => {
+            v.entraNoPercentual = true;
+          }),
+      );
   }
 }
 
