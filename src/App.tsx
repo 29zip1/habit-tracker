@@ -8,15 +8,19 @@ import { useAtualizacao } from './hooks/useAtualizacao';
 import { useCopiaDiaria } from './hooks/useCopiaDiaria';
 import { useTema } from './hooks/useTema';
 import { dataLogica } from './services/datas';
+import type { DataLocal } from './types';
 import { estaInstalado } from './services/ambiente';
 import type { ArquivoBackup } from './services/backup';
 import Ajustes from './screens/Ajustes';
 import EmBreve from './screens/EmBreve';
 import Habitos from './screens/Habitos';
+import Historico from './screens/Historico';
 import Hoje from './screens/Hoje';
 
 function AppPronto() {
   const [aba, setAba] = useState<Aba>('hoje');
+  // Dia escolhido no Histórico: a tela Hoje abre nele uma vez (RF-22).
+  const [diaDoHistorico, setDiaDoHistorico] = useState<DataLocal | null>(null);
   const atualizacao = useAtualizacao();
   useTema();
   useCopiaDiaria();
@@ -54,8 +58,22 @@ function AppPronto() {
       )}
 
       <main className="min-h-0 flex-1">
-        {aba === 'hoje' && <Hoje irParaAjustes={() => setAba('ajustes')} irParaHabitos={() => setAba('habitos')} />}
-        {aba === 'historico' && <EmBreve titulo="Histórico" fase="Fase 6" />}
+        {aba === 'hoje' && (
+          <Hoje
+            irParaAjustes={() => setAba('ajustes')}
+            irParaHabitos={() => setAba('habitos')}
+            diaInicial={diaDoHistorico}
+            aoUsarDiaInicial={() => setDiaDoHistorico(null)}
+          />
+        )}
+        {aba === 'historico' && (
+          <Historico
+            aoAbrirDia={(data) => {
+              setDiaDoHistorico(data);
+              setAba('hoje');
+            }}
+          />
+        )}
         {aba === 'evolucao' && <EmBreve titulo="Evolução" fase="Fase 7" />}
         {aba === 'habitos' && <Habitos />}
         {aba === 'ajustes' && <Ajustes atualizacao={atualizacao} />}

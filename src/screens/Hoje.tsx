@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { db } from '../database/db';
 import { operacoes } from '../database/operacoes';
 import type { EntradaDia } from '../services/calculos';
@@ -33,10 +33,22 @@ const botaoSecundario =
   'h-11 rounded-full border-[1.5px] border-verde-texto bg-transparent px-[22px] text-[14px] font-semibold text-verde-texto';
 const botaoLink = 'h-11 rounded-full border-0 bg-transparent px-3 text-[14px] font-semibold text-verde-texto underline';
 
-export default function Hoje({ irParaAjustes, irParaHabitos }: { irParaAjustes: () => void; irParaHabitos: () => void }) {
+interface PropsHoje {
+  irParaAjustes: () => void;
+  irParaHabitos: () => void;
+  /** Dia escolhido no Histórico (RF-22): a tela abre nele. */
+  diaInicial?: DataLocal | null;
+  aoUsarDiaInicial?: () => void;
+}
+
+export default function Hoje({ irParaAjustes, irParaHabitos, diaInicial = null, aoUsarDiaInicial }: PropsHoje) {
   const config = useLive(() => operacoes.lerConfig(), [], CONFIG_PADRAO);
   const hoje = useDataHoje(config.inicioDoDiaHora);
-  const [escolhida, setEscolhida] = useState<DataLocal | null>(null);
+  const [escolhida, setEscolhida] = useState<DataLocal | null>(diaInicial);
+  useEffect(() => {
+    if (diaInicial) aoUsarDiaInicial?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const data = escolhida ?? hoje;
   const ehHoje = data === hoje;
   const { aviso, mostrar, desfazer } = useAviso();
@@ -300,7 +312,7 @@ export default function Hoje({ irParaAjustes, irParaHabitos }: { irParaAjustes: 
         {resumo ? <Cabecalho resumo={resumo} nomesAParte={nomesAParte} /> : <div className="h-28" />}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 top-full h-8"
+          className="pointer-events-none absolute inset-x-0 top-full h-[22px]"
           style={{ background: 'linear-gradient(to bottom, var(--color-fundo), transparent)' }}
         />
       </div>

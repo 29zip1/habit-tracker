@@ -441,6 +441,16 @@ export class Operacoes {
     }));
   }
 
+  /** Primeiro dia com algum registro ou marcação (início do período para o Histórico, RF-C10). */
+  async primeiraData(): Promise<DataLocal | undefined> {
+    const [r, m] = await Promise.all([
+      this.db.registros.orderBy('data').first(),
+      this.db.marcacoes.orderBy('data').first(),
+    ]);
+    const datas = [r?.data, m?.data].filter((d): d is DataLocal => d !== undefined);
+    return datas.length === 0 ? undefined : datas.sort()[0];
+  }
+
   // ----- Hábitos de exemplo (temporário, Fase 3) -----
 
   /**

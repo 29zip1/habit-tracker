@@ -2,7 +2,7 @@ import type { ResumoDia } from '../services/calculos';
 import type { DataLocal } from '../types';
 import { descricaoEstado, diaSemanaCurto, diaSemanaNome, numeroDoDia } from '../services/textos';
 
-function Indicador({ r, ehHoje }: { r: ResumoDia; ehHoje: boolean }) {
+export function Indicador({ r, ehHoje }: { r: ResumoDia; ehHoje: boolean }) {
   // Sempre por FORMA, nunca só por cor (RF-03, RF-24).
   switch (r.estado) {
     case 'completo':
