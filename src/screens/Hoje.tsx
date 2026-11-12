@@ -289,20 +289,29 @@ export default function Hoje({ irParaAjustes, irParaHabitos }: { irParaAjustes: 
       )}
 
       <FaixaBackup />
-
-      {resumo ? <Cabecalho resumo={resumo} nomesAParte={nomesAParte} /> : <div className="h-28" />}
       </div>
 
-      {/* RF-01b: só a faixa dos 7 dias fica fixa; o cabeçalho acima rola junto com a lista. */}
+      {/*
+        RF-01b: o cabeçalho (dia, data, percentual e barra de progresso) fica FIXO no alto.
+        A faixa dos 7 dias e a lista rolam por baixo dele. O degradê no pé do cabeçalho
+        suaviza a passagem: a lista "some" aos poucos em vez de ser cortada de uma vez.
+      */}
+      <div className="sticky z-20 bg-fundo pb-2" style={{ top: 'var(--topo-seguro)' }}>
+        {resumo ? <Cabecalho resumo={resumo} nomesAParte={nomesAParte} /> : <div className="h-28" />}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-full h-8"
+          style={{ background: 'linear-gradient(to bottom, var(--color-fundo), transparent)' }}
+        />
+      </div>
+
       {faixa.length > 0 && (
-        <div className="sticky z-20 bg-fundo pb-1" style={{ top: 'var(--topo-seguro)' }}>
-          <FaixaDias
-            dias={faixa}
-            hoje={hoje}
-            selecionada={data}
-            aoSelecionar={(d) => setEscolhida(d === hoje ? null : d)}
-          />
-        </div>
+        <FaixaDias
+          dias={faixa}
+          hoje={hoje}
+          selecionada={data}
+          aoSelecionar={(d) => setEscolhida(d === hoje ? null : d)}
+        />
       )}
 
       <section className="mx-4 mt-2.5 overflow-hidden rounded-[20px] border border-borda bg-cartao px-4" aria-label="Hábitos do dia">
