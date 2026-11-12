@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Cartao } from '../components/Cartao';
+import Relatorio from './Relatorio';
 import { GraficoBarras, type BarraDoGrafico } from '../components/GraficoBarras';
 import { MapaCalor } from '../components/MapaCalor';
 import { operacoes } from '../database/operacoes';
@@ -35,6 +36,7 @@ const plural = (n: number, um: string, varios: string) => `${formatarNumero(n)} 
 
 /** Aba Evolução (Fase 7, Parte A): indicadores, desempenho por hábito, gráficos e mapa de calor. */
 export default function Evolucao() {
+  const [verRelatorio, setVerRelatorio] = useState(false);
   const config = useLive(() => operacoes.lerConfig(), [], CONFIG_PADRAO);
   const hoje = useDataHoje(config.inicioDoDiaHora);
   const [tipoPeriodo, setTipoPeriodo] = useState<TipoPeriodo>('30');
@@ -129,10 +131,21 @@ export default function Evolucao() {
     'dias parciais',
   )}, ${plural(contagemAno('folga'), 'dia de folga', 'dias de folga')}.`;
 
+  if (verRelatorio) return <Relatorio aoVoltar={() => setVerRelatorio(false)} />;
+
   return (
     <div className="h-full overflow-y-auto px-4 pb-28" style={{ paddingTop: 'var(--topo-seguro)' }}>
       <div className="mx-auto flex max-w-[480px] flex-col gap-4">
-        <h1 className="text-[28px] font-bold leading-tight">Evolução</h1>
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-[28px] font-bold leading-tight">Evolução</h1>
+          <button
+            type="button"
+            onClick={() => setVerRelatorio(true)}
+            className="h-11 shrink-0 rounded-full border-[1.5px] border-verde-texto bg-cartao px-4 text-[14px] font-semibold text-verde-texto"
+          >
+            Ver relatório
+          </button>
+        </div>
 
         {semDados ? (
           <p className="rounded-2xl border border-borda bg-cartao p-4 text-[15px] text-texto2">

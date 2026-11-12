@@ -3,13 +3,13 @@
 import type { Habito, Marcacao, Registro, VersaoHabito } from '../types';
 import { versaoVigente } from './calculos';
 
-const BOM = '﻿';
+export const BOM = '﻿';
 
-function escapar(valor: string): string {
+export function escapar(valor: string): string {
   return /[";\r\n]/.test(valor) ? `"${valor.replace(/"/g, '""')}"` : valor;
 }
 
-function numeroPtBr(n: number): string {
+export function numeroPtBr(n: number): string {
   return String(n).replace('.', ',');
 }
 
