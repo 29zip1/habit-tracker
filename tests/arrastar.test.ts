@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { deslocamentoDaLinha, moverItem, posicaoDeDestino } from '../src/services/ordenar';
+import { deslocamentoDaLinha, limitarDeslocamento, moverItem, posicaoDeDestino } from '../src/services/ordenar';
 import { fecharTodos, HOJE, modeloCardio, novoBancoDeTeste } from './apoioBanco';
 
 afterEach(fecharTodos);
@@ -93,5 +93,24 @@ describe('T-33h · gravar a ordem (RF-33b)', () => {
     await expect(ops.definirOrdem([a.habito.id, b.habito.id])).rejects.toThrow();
     await expect(ops.definirOrdem([a.habito.id, 'nao-existe'])).rejects.toThrow();
     expect((await ops.lerHabitosCompletos()).map((h) => h.habito.nome)).toEqual(['A', 'B']);
+  });
+});
+
+describe('T-33k · a linha arrastada não sai da lista', () => {
+  it('limita o deslocamento entre o primeiro e o último lugar', () => {
+    // meios 32, 96, 160, 224; arrastando a linha 1 (meio em 96)
+    expect(limitarDeslocamento(meios, 1, 1000)).toBe(224 - 96 + 1); // não passa do último (1 px de folga)
+    expect(limitarDeslocamento(meios, 1, -1000)).toBe(32 - 96 - 1); // não passa do primeiro
+    expect(limitarDeslocamento(meios, 1, 50)).toBe(50); // dentro do limite, não mexe
+    expect(limitarDeslocamento(meios, 0, -10)).toBe(-1); // primeira linha praticamente não sobe
+    expect(limitarDeslocamento(meios, 3, 10)).toBe(1); // última linha praticamente não desce
+    expect(limitarDeslocamento([], 0, 5)).toBe(0);
+  });
+
+  it('mesmo no limite, o destino calculado é a ponta da lista', () => {
+    const max = limitarDeslocamento(meios, 0, 9999);
+    expect(posicaoDeDestino(meios, 0, meios[0] + max)).toBe(3);
+    const min = limitarDeslocamento(meios, 3, -9999);
+    expect(posicaoDeDestino(meios, 3, meios[3] + min)).toBe(0);
   });
 });

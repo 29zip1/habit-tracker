@@ -28,7 +28,7 @@ interface Props {
   aoFechar: () => void;
   aoArquivar?: () => void;
   aoDuplicar?: () => void;
-  /** Só para hábito arquivado (RF-32). */
+  /** RF-32b: apagar o hábito (ativo ou arquivado), com a escolha sobre o histórico. */
   aoExcluir?: () => void;
   /** Categorias já usadas em outros hábitos (viram botões). */
   categoriasUsadas?: string[];
@@ -490,7 +490,7 @@ export function FormularioHabito({ habito, hoje, aoFechar, aoArquivar, aoDuplica
                 onClick={aoExcluir}
                 className="h-12 rounded-full border-[1.5px] border-laranja bg-transparent text-[15px] font-semibold text-laranja-texto"
               >
-                Excluir de vez…
+                Apagar hábito…
               </button>
             )}
           </div>

@@ -16,7 +16,8 @@ export interface Habito {
   cor: string;
   categoria: string;
   ordem: number;
-  status: 'ativo' | 'arquivado';
+  /** 'removido' = apagado mantendo o histórico (RF-32b): some das listas, os registros ficam. */
+  status: 'ativo' | 'arquivado' | 'removido';
   dataInicial?: DataLocal;
   dataFinal?: DataLocal;
   /** A partir desta data o hábito deixa de aparecer. O passado continua contando. */

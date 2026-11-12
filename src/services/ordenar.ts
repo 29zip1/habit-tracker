@@ -34,3 +34,17 @@ export function deslocamentoDaLinha(k: number, de: number, para: number, altura:
   if (para <= k && k < de) return altura;
   return 0;
 }
+
+/**
+ * Impede que a linha arrastada saia da lista: o meio dela fica entre o meio da
+ * primeira e o da última linha. Sem isso, arrastar para fora aumentava a área
+ * rolável e a rolagem automática descia sem parar.
+ */
+export function limitarDeslocamento(meios: number[], indice: number, dy: number): number {
+  if (meios.length === 0) return 0;
+  // 1 px de folga além do meio da primeira/última linha: sem ela, o meio da linha
+  // arrastada empata com o da última e a conta pararia na penúltima posição.
+  const minimo = meios[0] - meios[indice] - 1;
+  const maximo = meios[meios.length - 1] - meios[indice] + 1;
+  return Math.max(minimo, Math.min(maximo, dy));
+}

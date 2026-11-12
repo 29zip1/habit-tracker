@@ -13,26 +13,12 @@ import { baixarArquivo, compartilharArquivo } from '../services/compartilhar';
 import { corDoDesenho, descreverVersao } from '../services/habitos';
 import { CONFIG_PADRAO } from '../types';
 
-const CHAVE_DICA_ORDEM = 'ht-ordem-aprendida';
-/** A dica de arrastar some depois do primeiro arrasto. Só uma conveniência: se o armazenamento falhar, a dica só continua aparecendo. */
-function jaOrdenouAntes(): boolean {
-  try {
-    return localStorage.getItem(CHAVE_DICA_ORDEM) === '1';
-  } catch {
-    return false;
-  }
-}
-function lembrarQueJaOrdenou() {
-  try {
-    localStorage.setItem(CHAVE_DICA_ORDEM, '1');
-  } catch {
-    /* sem problema */
-  }
-}
-
 type Edicao = { modo: 'novo' } | { modo: 'editar'; id: string };
-/** 0 = fechado; 1 = primeira pergunta; 2 = confirmação final (RF-32: dupla confirmação). */
-type PassoExcluir = 0 | 1 | 2;
+/**
+ * RF-32b. 'escolha' = o que fazer com o histórico; 'tudo1' e 'tudo2' = apagar tudo (dupla
+ * confirmação); 'manter' = apagar mantendo o histórico.
+ */
+type PassoExcluir = 0 | 'escolha' | 'tudo1' | 'tudo2' | 'manter';
 
 function versaoParaMostrar(h: HabitoCompleto, hoje: string) {
   return (
@@ -97,12 +83,11 @@ export default function Habitos() {
   const [passoExcluir, setPassoExcluir] = useState<PassoExcluir>(0);
   const [msgBackup, setMsgBackup] = useState('');
   const [erro, setErro] = useState('');
-  const [viuDica, setViuDica] = useState(jaOrdenouAntes);
 
   const ativos = (habitos ?? []).filter((h) => h.habito.status === 'ativo');
   const arquivados = (habitos ?? []).filter((h) => h.habito.status === 'arquivado');
   const editado = edicao?.modo === 'editar' ? (habitos ?? []).find((h) => h.habito.id === edicao.id) : undefined;
-  const arquivosBackup = useArquivosBackup(passoExcluir > 0);
+  const arquivosBackup = useArquivosBackup(passoExcluir === 'tudo1');
 
   function fecharTudo() {
     setEdicao(null);
@@ -136,6 +121,19 @@ export default function Habitos() {
       setMsgBackup('Backup salvo. Agora você pode continuar.');
     } else if (r === 'erro') {
       setMsgBackup('Não consegui salvar o backup agora. Você pode tentar de novo.');
+    }
+  }
+
+  async function removerMantendo() {
+    if (!editado) return;
+    try {
+      // Cópia automática antes (RF-69), mesmo sem apagar registros.
+      await criarCopiaDeSeguranca(db, 'antes-excluir', __APP_VERSION__, hoje);
+      await operacoes.removerMantendoHistorico(editado.habito.id, hoje);
+      fecharTudo();
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Não consegui apagar.');
+      setPassoExcluir(0);
     }
   }
 
@@ -183,11 +181,7 @@ export default function Habitos() {
           <section className="rounded-[20px] border border-borda bg-cartao px-4" aria-label="Hábitos ativos">
             <ListaOrdenavel
               ids={ativos.map((h) => h.habito.id)}
-              aoReordenar={(novos) => {
-                void operacoes.definirOrdem(novos);
-                lembrarQueJaOrdenou();
-                setViuDica(true);
-              }}
+              aoReordenar={(novos) => void operacoes.definirOrdem(novos)}
             >
               {ativos.map((h) => (
                 <Linha key={h.habito.id} h={h} hoje={hoje} aoAbrir={() => setEdicao({ modo: 'editar', id: h.habito.id })} />
@@ -195,7 +189,7 @@ export default function Habitos() {
             </ListaOrdenavel>
           </section>
         )}
-        {ativos.length > 1 && !viuDica && (
+        {ativos.length > 1 && (
           <p className="-mt-2 text-[13px] text-texto2">Dica: segure um hábito e arraste para mudar a ordem.</p>
         )}
 
@@ -217,7 +211,7 @@ export default function Habitos() {
               ))}
             </div>
             <p className="mt-2 text-[13px] text-texto2">
-              Hábitos arquivados somem da tela Hoje e o histórico deles fica guardado. Para apagar de vez, toque no hábito.
+              Hábitos arquivados somem da tela Hoje e o histórico deles fica guardado. Para apagar, toque no hábito.
             </p>
           </section>
         )}
@@ -232,7 +226,7 @@ export default function Habitos() {
           aoFechar={fecharTudo}
           aoArquivar={editado && editado.habito.status === 'ativo' ? () => setConfirmandoArquivar(true) : undefined}
           aoDuplicar={editado ? () => void duplicar() : undefined}
-          aoExcluir={editado && editado.habito.status === 'arquivado' ? () => setPassoExcluir(1) : undefined}
+          aoExcluir={editado ? () => setPassoExcluir('escolha') : undefined}
         />
       )}
 
@@ -265,20 +259,73 @@ export default function Habitos() {
         </div>
       )}
 
-      {passoExcluir > 0 && editado && (
+      {passoExcluir !== 0 && editado && (
         <div className="fixed inset-0 z-[60] flex flex-col justify-end bg-[rgba(27,31,29,0.45)]">
           <div
             role="alertdialog"
-            aria-label="Confirmar exclusão definitiva"
+            aria-label="Apagar hábito"
             className="mx-auto flex w-full max-w-[480px] flex-col gap-3 rounded-t-3xl bg-cartao px-5 pt-5"
             style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 24px)' }}
           >
-            {passoExcluir === 1 ? (
+            {passoExcluir === 'escolha' && (
               <>
-                <div className="text-[18px] font-bold">Excluir “{editado.habito.nome}” de vez?</div>
+                <div className="text-[18px] font-bold">Apagar “{editado.habito.nome}”</div>
+                <p className="text-[14px] text-texto2">O que fazer com o histórico dele?</p>
+                <button
+                  type="button"
+                  onClick={() => setPassoExcluir('manter')}
+                  className="flex min-h-[64px] flex-col items-start rounded-xl border-[1.5px] border-cinza-anel bg-cartao px-3 py-2 text-left"
+                >
+                  <span className="text-[15px] font-semibold text-texto">Apagar o hábito e manter o histórico</span>
+                  <span className="text-[13px] text-texto2">
+                    Ele continua hoje e some a partir de amanhã. Tudo que foi registrado, hoje e antes, fica guardado.
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPassoExcluir('tudo1')}
+                  className="flex min-h-[64px] flex-col items-start rounded-xl border-[1.5px] border-laranja bg-cartao px-3 py-2 text-left"
+                >
+                  <span className="text-[15px] font-semibold text-laranja-texto">Apagar o hábito e o histórico</span>
+                  <span className="text-[13px] text-texto2">
+                    Apaga também todos os registros, de hoje e dos dias anteriores. Não dá para desfazer.
+                  </span>
+                </button>
+                <button type="button" onClick={() => setPassoExcluir(0)} className={botaoContorno}>
+                  Cancelar
+                </button>
+              </>
+            )}
+
+            {passoExcluir === 'manter' && (
+              <>
+                <div className="text-[18px] font-bold">Apagar “{editado.habito.nome}” e manter o histórico?</div>
                 <p className="text-[14px] text-texto2">
-                  Isso apaga o hábito <strong>e todos os registros dele</strong>, inclusive os do histórico. Não dá para
-                  desfazer sem restaurar uma cópia. Se quiser só esconder, deixe arquivado.
+                  O hábito some da aba Hábitos agora e <strong>não pode ser reativado</strong>. Hoje ele continua na tela
+                  Hoje e conta no percentual; <strong>a partir de amanhã</strong> não aparece mais. Os registros de hoje e
+                  dos dias anteriores ficam guardados, e os dias passados não mudam. O app guarda uma cópia automática antes.
+                </p>
+                <div className="flex gap-2.5">
+                  <button type="button" onClick={() => setPassoExcluir('escolha')} className={botaoContorno}>
+                    Voltar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void removerMantendo()}
+                    className="h-12 flex-[1.4] rounded-full border-0 bg-verde text-[15px] font-bold text-white"
+                  >
+                    Apagar e manter histórico
+                  </button>
+                </div>
+              </>
+            )}
+
+            {passoExcluir === 'tudo1' && (
+              <>
+                <div className="text-[18px] font-bold">Apagar “{editado.habito.nome}” e o histórico?</div>
+                <p className="text-[14px] text-texto2">
+                  Isso apaga o hábito <strong>e todos os registros dele</strong>, de hoje e dos dias anteriores. Não dá
+                  para desfazer sem restaurar uma cópia.
                 </p>
                 <button
                   type="button"
@@ -290,19 +337,21 @@ export default function Habitos() {
                 </button>
                 {msgBackup && <p className="text-[14px]">{msgBackup}</p>}
                 <div className="flex gap-2.5">
-                  <button type="button" onClick={() => setPassoExcluir(0)} className={botaoContorno}>
-                    Cancelar
+                  <button type="button" onClick={() => setPassoExcluir('escolha')} className={botaoContorno}>
+                    Voltar
                   </button>
                   <button
                     type="button"
-                    onClick={() => setPassoExcluir(2)}
+                    onClick={() => setPassoExcluir('tudo2')}
                     className="h-12 flex-[1.4] rounded-full border-[1.5px] border-laranja bg-transparent text-[15px] font-bold text-laranja-texto"
                   >
                     Continuar
                   </button>
                 </div>
               </>
-            ) : (
+            )}
+
+            {passoExcluir === 'tudo2' && (
               <>
                 <div className="text-[18px] font-bold">Tem certeza?</div>
                 <p className="text-[14px] text-texto2">
@@ -311,14 +360,14 @@ export default function Habitos() {
                 </p>
                 <div className="flex gap-2.5">
                   <button type="button" onClick={() => setPassoExcluir(0)} className={botaoContorno}>
-                    Não excluir
+                    Não apagar
                   </button>
                   <button
                     type="button"
                     onClick={() => void excluirParaSempre()}
                     className="h-12 flex-[1.4] rounded-full border-0 bg-vermelho text-[15px] font-bold text-aviso-texto"
                   >
-                    Excluir para sempre
+                    Apagar para sempre
                   </button>
                 </div>
               </>

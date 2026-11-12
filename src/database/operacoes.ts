@@ -280,8 +280,9 @@ export class Operacoes {
   }
 
   /**
-   * RF-32: apaga de vez um hábito ARQUIVADO, com versões, registros e marcações.
-   * Não toca em nenhum outro hábito. Quem chama guarda a cópia de segurança antes.
+   * RF-32b, opção 1: apaga de vez o hábito (ativo ou arquivado) com versões, registros e
+   * marcações, de hoje e dos dias anteriores. Não toca em nenhum outro hábito. Quem
+   * chama guarda a cópia de segurança antes.
    */
   async excluirHabito(id: string): Promise<{ registros: number; marcacoes: number }> {
     return this.db.transaction(
@@ -290,7 +291,6 @@ export class Operacoes {
       async () => {
         const h = await this.db.habitos.get(id);
         if (!h) throw new Error('Hábito não encontrado.');
-        if (h.status !== 'arquivado') throw new Error('Só dá para excluir de vez um hábito arquivado.');
         const regs = await this.db.registros.where('habitoId').equals(id).primaryKeys();
         const marcs = await this.db.marcacoes.where('habitoId').equals(id).primaryKeys();
         await this.db.registros.bulkDelete(regs);
@@ -300,6 +300,21 @@ export class Operacoes {
         return { registros: regs.length, marcacoes: marcs.length };
       },
     );
+  }
+
+  /**
+   * RF-32b, opção 2: apaga o hábito mantendo o histórico. Ele some na hora das listas
+   * de Hábitos (não vai para "Arquivados") e não pode ser reativado; continua hoje na
+   * tela Hoje e só sai a partir de amanhã. Registros e marcações ficam guardados.
+   */
+  async removerMantendoHistorico(id: string, hoje: DataLocal): Promise<void> {
+    const h = await this.db.habitos.get(id);
+    if (!h) throw new Error('Hábito não encontrado.');
+    await this.db.habitos.update(id, {
+      status: 'removido',
+      arquivadoEm: somarDias(hoje, 1),
+      editadoEm: agora(),
+    });
   }
 
   // ----- Registros (RF-18) -----

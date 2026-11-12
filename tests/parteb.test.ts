@@ -71,11 +71,13 @@ describe('T-33b · duplicar', () => {
 });
 
 describe('T-32b/c/d · excluir de vez', () => {
-  it('recusa hábito ativo', async () => {
+  it('RF-32b: também apaga um hábito ativo, sem precisar arquivar', async () => {
     const { ops } = novoBancoDeTeste();
     const a = await ops.criarHabito(modeloCardio);
-    await expect(ops.excluirHabito(a.habito.id)).rejects.toThrow(/arquivado/);
-    expect(await nomesEmOrdem(ops)).toEqual(['Cardio']);
+    await ops.registrarValor(a.habito.id, 10, HOJE, 'bloco', '08:00');
+    await ops.excluirHabito(a.habito.id);
+    expect(await nomesEmOrdem(ops)).toEqual([]);
+    await expect(ops.excluirHabito('nao-existe')).rejects.toThrow();
   });
 
   it('apaga só aquele hábito, com versões, registros e marcações; o resto fica intacto', async () => {
@@ -191,5 +193,63 @@ describe('T-34c · arquivo local de hábitos (só existe no computador do usuár
     const r = lerArquivoHabitos(readFileSync(caminho, 'utf8'));
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.habitos.every((h) => h.entraNoPercentual)).toBe(true);
+  });
+});
+
+describe('T-32g/h · apagar mantendo o histórico (RF-32b)', () => {
+  it('continua hoje e conta no percentual de hoje, sai a partir de amanhã, dias passados intactos', async () => {
+    const { ops } = novoBancoDeTeste();
+    const a = await ops.criarHabito({ ...modeloCardio, vigenteDesde: '2026-11-01' });
+    const b = await ops.criarHabito({ ...modeloCardio, nome: 'B', vigenteDesde: '2026-11-01' });
+    await ops.registrarValor(a.habito.id, 30, '2026-11-09', 'bloco', '08:00');
+    await ops.registrarValor(a.habito.id, 15, HOJE, 'bloco', '08:00');
+    const passadoAntes = calcularDia(await ops.carregarEntradaDoDia('2026-11-09', HOJE)).percentual;
+    const hojeAntes = calcularDia(await ops.carregarEntradaDoDia(HOJE, HOJE)).percentual;
+
+    await ops.removerMantendoHistorico(a.habito.id, HOJE);
+
+    const hoje = calcularDia(await ops.carregarEntradaDoDia(HOJE, HOJE));
+    expect(hoje.habitos.find((h) => h.habitoId === a.habito.id)?.programado).toBe(true);
+    expect(hoje.habitos.find((h) => h.habitoId === a.habito.id)?.total).toBe(15);
+    expect(hoje.percentual).toBe(hojeAntes);
+    const amanha = calcularDia(await ops.carregarEntradaDoDia('2026-11-11', '2026-11-11'));
+    expect(amanha.habitos.find((h) => h.habitoId === a.habito.id)?.programado).toBe(false);
+    expect(amanha.habitos.find((h) => h.habitoId === b.habito.id)?.programado).toBe(true);
+    expect(calcularDia(await ops.carregarEntradaDoDia('2026-11-09', HOJE)).percentual).toBe(passadoAntes);
+  });
+
+  it('some das listas de ativos e de arquivados, não entra na ordem e não dá para reativar pela tela', async () => {
+    const { ops } = novoBancoDeTeste();
+    const a = await ops.criarHabito({ ...modeloCardio, nome: 'A' });
+    const b = await ops.criarHabito({ ...modeloCardio, nome: 'B' });
+    await ops.removerMantendoHistorico(a.habito.id, HOJE);
+    const todos = await ops.lerHabitosCompletos();
+    expect(todos.filter((h) => h.habito.status === 'ativo').map((h) => h.habito.nome)).toEqual(['B']);
+    expect(todos.filter((h) => h.habito.status === 'arquivado')).toHaveLength(0);
+    expect(todos.find((h) => h.habito.nome === 'A')?.habito.status).toBe('removido');
+    await expect(ops.definirOrdem([a.habito.id, b.habito.id])).rejects.toThrow();
+    await expect(ops.removerMantendoHistorico('nao-existe', HOJE)).rejects.toThrow();
+  });
+
+  it('o backup continua trazendo os registros do hábito removido e é válido; restaurar devolve tudo', async () => {
+    const { ops, db } = novoBancoDeTeste();
+    const a = await ops.criarHabito(modeloCardio);
+    await ops.registrarValor(a.habito.id, 15, HOJE, 'bloco', '08:00');
+    await ops.removerMantendoHistorico(a.habito.id, HOJE);
+    const { gerarBackup, serializarBackup, validarBackup } = await import('../src/services/backup');
+    const arquivo = await gerarBackup(db, '9.9.9');
+    expect(arquivo.contagens.registros).toBe(1);
+    expect(arquivo.dados.habitos[0].status).toBe('removido');
+    expect((await validarBackup(serializarBackup(arquivo))).ok).toBe(true);
+  });
+
+  it('a opção "apagar tudo" apaga também de hoje e dos dias anteriores', async () => {
+    const { ops, db } = novoBancoDeTeste();
+    const a = await ops.criarHabito({ ...modeloCardio, vigenteDesde: '2026-11-01' });
+    await ops.registrarValor(a.habito.id, 30, '2026-11-09', 'bloco', '08:00');
+    await ops.registrarValor(a.habito.id, 15, HOJE, 'bloco', '08:00');
+    await ops.excluirHabito(a.habito.id);
+    expect(await db.registros.count()).toBe(0);
+    expect(await db.habitos.count()).toBe(0);
   });
 });

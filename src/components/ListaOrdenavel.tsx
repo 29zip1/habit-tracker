@@ -1,5 +1,5 @@
 import { Children, useEffect, useRef, useState, type ReactNode } from 'react';
-import { deslocamentoDaLinha, moverItem, posicaoDeDestino } from '../services/ordenar';
+import { deslocamentoDaLinha, limitarDeslocamento, moverItem, posicaoDeDestino } from '../services/ordenar';
 
 const TEMPO_SEGURAR_MS = 400;
 const TOLERANCIA_PX = 10;
@@ -54,6 +54,8 @@ export function ListaOrdenavel({ ids, aoReordenar, children }: Props) {
       de: number;
       para: number;
       meios: number[];
+      /** Altura da linha medida uma vez, sem o aumento do arrasto (medir de novo fazia tudo tremer). */
+      altura: number;
       inicioY: number;
       ultimoY: number;
       rolavel: HTMLElement;
@@ -69,17 +71,10 @@ export function ListaOrdenavel({ ids, aoReordenar, children }: Props) {
     const atualizar = (clientY: number) => {
       if (!ativo) return;
       ativo.ultimoY = clientY;
-      const dy = clientY + ativo.rolavel.scrollTop - ativo.inicioY;
+      const dy = limitarDeslocamento(ativo.meios, ativo.de, clientY + ativo.rolavel.scrollTop - ativo.inicioY);
       const centro = ativo.meios[ativo.de] + dy;
       ativo.para = posicaoDeDestino(ativo.meios, ativo.de, centro);
-      const linha = el.querySelectorAll<HTMLElement>('[data-ordem-id]')[ativo.de];
-      setArrasto({
-        id: idsRef.current[ativo.de],
-        de: ativo.de,
-        para: ativo.para,
-        dy,
-        altura: linha?.getBoundingClientRect().height ?? 64,
-      });
+      setArrasto({ id: idsRef.current[ativo.de], de: ativo.de, para: ativo.para, dy, altura: ativo.altura });
     };
 
     // A lista rola sozinha quando o dedo chega perto da borda de cima ou de baixo.
@@ -107,16 +102,18 @@ export function ListaOrdenavel({ ids, aoReordenar, children }: Props) {
         const r = l.getBoundingClientRect();
         return r.top + rolavel.scrollTop + r.height / 2;
       });
+      const altura = linhas[de].offsetHeight; // offsetHeight ignora transformações
       ativo = {
         de,
         para: de,
         meios,
+        altura,
         inicioY: y + rolavel.scrollTop,
         ultimoY: y,
         rolavel,
         quadro: window.requestAnimationFrame(rolarSozinho),
       };
-      setArrasto({ id, de, para: de, dy: 0, altura: linhas[de].getBoundingClientRect().height });
+      setArrasto({ id, de, para: de, dy: 0, altura });
     };
 
     const aoTocar = (e: TouchEvent) => {
@@ -209,9 +206,9 @@ export function ListaOrdenavel({ ids, aoReordenar, children }: Props) {
             key={id}
             data-ordem-id={id}
             style={estilo}
-            className={i > 0 ? 'border-t border-linha' : ''}
+            className="-mx-4 px-4"
           >
-            {filho}
+            <div className={i > 0 && !levantada ? 'border-t border-linha' : ''}>{filho}</div>
           </div>
         );
       })}

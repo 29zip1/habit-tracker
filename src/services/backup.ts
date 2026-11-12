@@ -123,7 +123,7 @@ function validarHabito(h: unknown): string | null {
   if (!ehTexto(h.nome) || h.nome.trim() === '') return 'sem nome';
   if (!ehTexto(h.icone) || !ehTexto(h.cor) || !ehTexto(h.categoria)) return 'ícone, cor ou categoria inválidos';
   if (!ehNumero(h.ordem)) return 'ordem inválida';
-  if (h.status !== 'ativo' && h.status !== 'arquivado') return 'status inválido';
+  if (h.status !== 'ativo' && h.status !== 'arquivado' && h.status !== 'removido') return 'status inválido';
   for (const campo of ['dataInicial', 'dataFinal', 'arquivadoEm'] as const) {
     if (h[campo] !== undefined && !ehData(h[campo])) return `${campo} inválida`;
   }

@@ -265,7 +265,14 @@ export default function Hoje({ irParaAjustes, irParaHabitos }: { irParaAjustes: 
   const nota = entrada?.dia?.nota ?? '';
 
   return (
-    <div className="h-full overflow-y-auto pb-28" style={{ paddingTop: 'var(--topo-seguro)' }}>
+    <div className="h-full overflow-y-auto pb-28">
+      {/* RF-01b: tampa opaca sobre a barra de status; a lista some por baixo dela ao rolar. */}
+      <div
+        aria-hidden="true"
+        className="sticky top-0 z-30 bg-fundo"
+        style={{ height: 'var(--topo-seguro)', marginBottom: 'calc(-1 * var(--topo-seguro))' }}
+      />
+      <div style={{ paddingTop: 'var(--topo-seguro)' }}>
       {!ehHoje && (
         <div className="mx-4 mb-3 flex items-center justify-between rounded-2xl bg-verde-claro px-4 py-2 text-[14px]">
           <span>
@@ -284,14 +291,18 @@ export default function Hoje({ irParaAjustes, irParaHabitos }: { irParaAjustes: 
       <FaixaBackup />
 
       {resumo ? <Cabecalho resumo={resumo} nomesAParte={nomesAParte} /> : <div className="h-28" />}
+      </div>
 
+      {/* RF-01b: só a faixa dos 7 dias fica fixa; o cabeçalho acima rola junto com a lista. */}
       {faixa.length > 0 && (
-        <FaixaDias
-          dias={faixa}
-          hoje={hoje}
-          selecionada={data}
-          aoSelecionar={(d) => setEscolhida(d === hoje ? null : d)}
-        />
+        <div className="sticky z-20 bg-fundo pb-1" style={{ top: 'var(--topo-seguro)' }}>
+          <FaixaDias
+            dias={faixa}
+            hoje={hoje}
+            selecionada={data}
+            aoSelecionar={(d) => setEscolhida(d === hoje ? null : d)}
+          />
+        </div>
       )}
 
       <section className="mx-4 mt-2.5 overflow-hidden rounded-[20px] border border-borda bg-cartao px-4" aria-label="Hábitos do dia">
