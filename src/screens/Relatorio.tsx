@@ -199,7 +199,7 @@ export default function Relatorio({ aoVoltar }: { aoVoltar: () => void }) {
                 <div className="rounded-[20px] border border-borda bg-cartao px-4 py-1">
                   {relatorio.notas.map((n, i) => (
                     <div key={n.data} className={`py-3 text-[14px] ${i > 0 ? 'border-t border-linha' : ''}`}>
-                      <span className="font-semibold">{dataBr(n.data).slice(0, 5)}</span> · {n.texto}
+                      <span className="font-semibold">{dataBr(n.data)}</span> · {n.texto}
                     </div>
                   ))}
                 </div>

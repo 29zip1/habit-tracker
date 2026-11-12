@@ -175,7 +175,8 @@ describe('T-51n · texto e CSV trazem os mesmos números', () => {
     expect(texto).toContain('Total: 7.000 kcal');
     expect(texto).toContain('Dias dentro do limite: 4');
     expect(texto).toContain('Meditar (sim ou não)');
-    expect(texto).toContain('04/11 - treino leve');
+    expect(texto).toContain('04/11/2026 - treino leve');
+    expect(texto).toContain('09/11/2026 - viagem');
     expect(texto).not.toMatch(/falha:/i);
   });
 

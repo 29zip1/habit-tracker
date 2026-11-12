@@ -202,7 +202,7 @@ export function textoDoRelatorio(r: Relatorio): string {
   if (r.notas.length > 0) {
     L.push('');
     L.push('NOTAS');
-    for (const n of r.notas) L.push(`${dataBr(n.data).slice(0, 5)} - ${n.texto}`);
+    for (const n of r.notas) L.push(`${dataBr(n.data)} - ${n.texto}`);
   }
   L.push('');
   L.push('Dias sem dados não são falha; dias de folga não contam.');
