@@ -224,6 +224,23 @@ export class Operacoes {
   }
 
   /**
+   * RF-33b: grava a nova ordem dos hábitos ATIVOS (arrastar e soltar). Reaproveita as
+   * mesmas posições que eles já ocupavam, então os arquivados não mudam de lugar.
+   */
+  async definirOrdem(idsAtivosNaNovaOrdem: string[]): Promise<void> {
+    await this.db.transaction('rw', this.db.habitos, async () => {
+      if (new Set(idsAtivosNaNovaOrdem).size !== idsAtivosNaNovaOrdem.length) throw new Error('Ordem com hábito repetido.');
+      const hs = await this.db.habitos.bulkGet(idsAtivosNaNovaOrdem);
+      if (hs.some((h) => !h || h.status !== 'ativo')) throw new Error('A ordem só vale para hábitos ativos.');
+      const posicoes = hs.map((h) => (h as Habito).ordem).sort((a, b) => a - b);
+      const t = agora();
+      for (let i = 0; i < idsAtivosNaNovaOrdem.length; i++) {
+        await this.db.habitos.update(idsAtivosNaNovaOrdem[i], { ordem: posicoes[i], editadoEm: t });
+      }
+    });
+  }
+
+  /**
    * RF-33: cria "Nome (cópia)" logo abaixo do original, com a configuração que vale
    * em `hoje`. Sem registros, marcações nem histórico.
    */

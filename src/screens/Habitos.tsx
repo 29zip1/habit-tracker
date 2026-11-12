@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { ArrowDown, ArrowUp, ChevronRight, Plus } from 'lucide-react';
+import { GripVertical, Plus } from 'lucide-react';
 import { FormularioHabito } from '../components/FormularioHabito';
 import { IconeHabito } from '../components/icones';
+import { ListaOrdenavel } from '../components/ListaOrdenavel';
 import { criarCopiaDeSeguranca } from '../database/copias';
 import { db } from '../database/db';
 import { operacoes } from '../database/operacoes';
@@ -11,6 +12,23 @@ import { versaoVigente, type HabitoCompleto } from '../services/calculos';
 import { baixarArquivo, compartilharArquivo } from '../services/compartilhar';
 import { corDoDesenho, descreverVersao } from '../services/habitos';
 import { CONFIG_PADRAO } from '../types';
+
+const CHAVE_DICA_ORDEM = 'ht-ordem-aprendida';
+/** A dica de arrastar some depois do primeiro arrasto. Só uma conveniência: se o armazenamento falhar, a dica só continua aparecendo. */
+function jaOrdenouAntes(): boolean {
+  try {
+    return localStorage.getItem(CHAVE_DICA_ORDEM) === '1';
+  } catch {
+    return false;
+  }
+}
+function lembrarQueJaOrdenou() {
+  try {
+    localStorage.setItem(CHAVE_DICA_ORDEM, '1');
+  } catch {
+    /* sem problema */
+  }
+}
 
 type Edicao = { modo: 'novo' } | { modo: 'editar'; id: string };
 /** 0 = fechado; 1 = primeira pergunta; 2 = confirmação final (RF-32: dupla confirmação). */
@@ -23,23 +41,18 @@ function versaoParaMostrar(h: HabitoCompleto, hoje: string) {
   );
 }
 
-const botaoSeta =
-  'flex size-11 shrink-0 items-center justify-center rounded-full border-0 bg-transparent p-0 text-texto2 disabled:opacity-30';
-
 interface LinhaProps {
   h: HabitoCompleto;
   hoje: string;
   aoAbrir: () => void;
   aoReativar?: () => void;
-  aoSubir?: () => void;
-  aoDescer?: () => void;
 }
 
-function Linha({ h, hoje, aoAbrir, aoReativar, aoSubir, aoDescer }: LinhaProps) {
+function Linha({ h, hoje, aoAbrir, aoReativar }: LinhaProps) {
   const v = versaoParaMostrar(h, hoje);
   const ordenavel = !aoReativar;
   return (
-    <div className="-mx-4 flex min-h-[64px] items-center gap-1 border-t border-linha px-4 py-2.5 first:border-t-0">
+    <div className="-mx-4 flex min-h-[64px] items-center gap-1 px-4 py-2.5">
       <button
         type="button"
         onClick={aoAbrir}
@@ -57,18 +70,8 @@ function Linha({ h, hoje, aoAbrir, aoReativar, aoSubir, aoDescer }: LinhaProps) 
           <span className="truncate text-[16px] font-semibold leading-tight">{h.habito.nome}</span>
           <span className="truncate text-[13px] text-texto2">{v ? descreverVersao(v) : ''}</span>
         </span>
-        {ordenavel && <ChevronRight size={16} className="shrink-0 text-texto2" aria-hidden="true" />}
       </button>
-      {ordenavel && (
-        <>
-          <button type="button" aria-label={`Subir ${h.habito.nome}`} disabled={!aoSubir} onClick={aoSubir} className={botaoSeta}>
-            <ArrowUp size={20} aria-hidden="true" />
-          </button>
-          <button type="button" aria-label={`Descer ${h.habito.nome}`} disabled={!aoDescer} onClick={aoDescer} className={botaoSeta}>
-            <ArrowDown size={20} aria-hidden="true" />
-          </button>
-        </>
-      )}
+      {ordenavel && <GripVertical size={20} className="shrink-0 text-texto2 opacity-50" aria-hidden="true" />}
       {aoReativar && (
         <button
           type="button"
@@ -94,6 +97,7 @@ export default function Habitos() {
   const [passoExcluir, setPassoExcluir] = useState<PassoExcluir>(0);
   const [msgBackup, setMsgBackup] = useState('');
   const [erro, setErro] = useState('');
+  const [viuDica, setViuDica] = useState(jaOrdenouAntes);
 
   const ativos = (habitos ?? []).filter((h) => h.habito.status === 'ativo');
   const arquivados = (habitos ?? []).filter((h) => h.habito.status === 'arquivado');
@@ -177,20 +181,22 @@ export default function Habitos() {
 
         {ativos.length > 0 && (
           <section className="rounded-[20px] border border-borda bg-cartao px-4" aria-label="Hábitos ativos">
-            {ativos.map((h, i) => (
-              <Linha
-                key={h.habito.id}
-                h={h}
-                hoje={hoje}
-                aoAbrir={() => setEdicao({ modo: 'editar', id: h.habito.id })}
-                aoSubir={i > 0 ? () => void operacoes.moverHabito(h.habito.id, -1) : undefined}
-                aoDescer={i < ativos.length - 1 ? () => void operacoes.moverHabito(h.habito.id, 1) : undefined}
-              />
-            ))}
+            <ListaOrdenavel
+              ids={ativos.map((h) => h.habito.id)}
+              aoReordenar={(novos) => {
+                void operacoes.definirOrdem(novos);
+                lembrarQueJaOrdenou();
+                setViuDica(true);
+              }}
+            >
+              {ativos.map((h) => (
+                <Linha key={h.habito.id} h={h} hoje={hoje} aoAbrir={() => setEdicao({ modo: 'editar', id: h.habito.id })} />
+              ))}
+            </ListaOrdenavel>
           </section>
         )}
-        {ativos.length > 1 && (
-          <p className="-mt-2 text-[13px] text-texto2">Use as setas ↑ ↓ para mudar a ordem. A tela Hoje segue a mesma ordem.</p>
+        {ativos.length > 1 && !viuDica && (
+          <p className="-mt-2 text-[13px] text-texto2">Dica: segure um hábito e arraste para mudar a ordem.</p>
         )}
 
         {arquivados.length > 0 && (
@@ -199,14 +205,15 @@ export default function Habitos() {
               Arquivados
             </h2>
             <div className="rounded-[20px] border border-borda bg-cartao px-4">
-              {arquivados.map((h) => (
+              {arquivados.map((h, i) => (
+                <div key={h.habito.id} className={i > 0 ? 'border-t border-linha' : ''}>
                 <Linha
-                  key={h.habito.id}
                   h={h}
                   hoje={hoje}
                   aoAbrir={() => setEdicao({ modo: 'editar', id: h.habito.id })}
                   aoReativar={() => void operacoes.reativarHabito(h.habito.id)}
                 />
+                </div>
               ))}
             </div>
             <p className="mt-2 text-[13px] text-texto2">
