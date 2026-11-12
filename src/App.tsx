@@ -12,7 +12,7 @@ import type { DataLocal } from './types';
 import { estaInstalado } from './services/ambiente';
 import type { ArquivoBackup } from './services/backup';
 import Ajustes from './screens/Ajustes';
-import EmBreve from './screens/EmBreve';
+import Evolucao from './screens/Evolucao';
 import Habitos from './screens/Habitos';
 import Historico from './screens/Historico';
 import Hoje from './screens/Hoje';
@@ -74,7 +74,7 @@ function AppPronto() {
             }}
           />
         )}
-        {aba === 'evolucao' && <EmBreve titulo="Evolução" fase="Fase 7" />}
+        {aba === 'evolucao' && <Evolucao />}
         {aba === 'habitos' && <Habitos />}
         {aba === 'ajustes' && <Ajustes atualizacao={atualizacao} />}
       </main>

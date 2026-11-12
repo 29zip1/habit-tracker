@@ -59,10 +59,11 @@ export function gradeDoMes(m: MesRef, inicioSemana = 1): (DataLocal | null)[][] 
 
 // ---------- períodos (RF-41) ----------
 
-export type TipoPeriodo = 'mes' | '30' | '90' | 'ano' | 'tudo';
+export type TipoPeriodo = 'mes' | '7' | '30' | '90' | 'ano' | 'tudo';
 
 export const ROTULOS_PERIODO: Record<TipoPeriodo, string> = {
   mes: 'Mês',
+  '7': '7 dias',
   '30': '30 dias',
   '90': '90 dias',
   ano: 'Este ano',
@@ -85,6 +86,8 @@ export function periodoDe(
     case 'mes':
       // O mês inteiro; os dias que ainda não chegaram saem das contas pelo estado "futuro".
       return { inicio: primeiroDiaDoMes(mes), fim: ultimoDiaDoMes(mes) };
+    case '7':
+      return { inicio: somarDias(hoje, -6), fim: hoje };
     case '30':
       return { inicio: somarDias(hoje, -29), fim: hoje };
     case '90':

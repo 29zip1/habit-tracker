@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { CalendarioMes } from '../components/CalendarioMes';
+import { Cartao } from '../components/Cartao';
 import { operacoes } from '../database/operacoes';
 import { useDataHoje, useLive } from '../hooks/useLive';
 import { versaoVigente, type EntradaDia, type HabitoCompleto, type ResumoDia } from '../services/calculos';
@@ -20,16 +21,6 @@ import { formatarNumero } from '../services/textos';
 import { CONFIG_PADRAO, type DataLocal } from '../types';
 
 const PERIODOS: TipoPeriodo[] = ['mes', '30', '90', 'ano', 'tudo'];
-
-function Cartao({ titulo, valor, detalhe }: { titulo: string; valor: string; detalhe?: string }) {
-  return (
-    <div className="flex flex-col rounded-2xl border border-borda bg-cartao p-3">
-      <span className="text-[13px] text-texto2">{titulo}</span>
-      <span className="text-[22px] font-bold leading-tight">{valor}</span>
-      {detalhe && <span className="text-[12px] text-texto2">{detalhe}</span>}
-    </div>
-  );
-}
 
 const plural = (n: number, um: string, varios: string) => `${formatarNumero(n)} ${n === 1 ? um : varios}`;
 
