@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <radialGradient id="fundo" cx="50%" cy="38%" r="75%">
+      <stop offset="0" stop-color="#0E4A2C"/>
+      <stop offset="0.6" stop-color="#072E1B"/>
+      <stop offset="1" stop-color="#03130B"/>
+    </radialGradient>
+    <linearGradient id="moldura" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7CFFA0"/>
+      <stop offset="1" stop-color="#22D45A"/>
+    </linearGradient>
+    <filter id="brilho" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="22"/>
+    </filter>
+    <filter id="sombra" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="10"/>
+    </filter>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#fundo)"/>
+  <rect x="212" y="212" width="600" height="600" rx="150" fill="none" stroke="#2BFF6A" stroke-width="64" opacity="0.75" filter="url(#brilho)"/>
+  <rect x="212" y="212" width="600" height="600" rx="150" fill="#04170E" fill-opacity="0.55" stroke="url(#moldura)" stroke-width="44"/>
+  <rect x="236" y="236" width="552" height="552" rx="128" fill="none" stroke="#D9FFE4" stroke-opacity="0.35" stroke-width="4"/>
+  <path d="M336 524 L452 640 L700 384" fill="none" stroke="#000" stroke-opacity="0.45" stroke-width="84" stroke-linecap="round" stroke-linejoin="round" transform="translate(0 12)" filter="url(#sombra)"/>
+  <path d="M336 524 L452 640 L700 384" fill="none" stroke="#FFFFFF" stroke-width="84" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
