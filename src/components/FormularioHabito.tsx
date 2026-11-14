@@ -20,6 +20,7 @@ import {
 } from '../services/habitos';
 import type { DataLocal, TipoHabito } from '../types';
 import { GRUPOS_ICONES, IconeHabito } from './icones';
+import { SeletorCor, type CorDeOutroHabito } from './SeletorCor';
 
 interface Props {
   /** undefined = criar um hábito novo. */
@@ -32,6 +33,8 @@ interface Props {
   aoExcluir?: () => void;
   /** Categorias já usadas em outros hábitos (viram botões). */
   categoriasUsadas?: string[];
+  /** RF-78: cores e ícones dos OUTROS hábitos (atalho de cores e "conta-gotas"). */
+  outrosHabitos?: CorDeOutroHabito[];
 }
 
 const campoTexto =
@@ -40,7 +43,7 @@ const rotulo = 'text-[14px] font-semibold text-texto';
 const ajuda = 'text-[13px] text-texto2';
 
 /** Criar e editar hábito (RF-30, RF-31). Tela cheia, com rolagem. */
-export function FormularioHabito({ habito, hoje, aoFechar, aoArquivar, aoDuplicar, aoExcluir, categoriasUsadas = [] }: Props) {
+export function FormularioHabito({ habito, hoje, aoFechar, aoArquivar, aoDuplicar, aoExcluir, categoriasUsadas = [], outrosHabitos = [] }: Props) {
   const editando = habito !== undefined;
   const versaoAtual = useMemo(() => {
     if (!habito) return undefined;
@@ -54,6 +57,7 @@ export function FormularioHabito({ habito, hoje, aoFechar, aoArquivar, aoDuplica
     habito && versaoAtual ? habitoParaFormulario(habito.habito, versaoAtual) : formularioVazio(),
   );
   const [escrevendoCategoria, setEscrevendoCategoria] = useState(false);
+  const [maisCores, setMaisCores] = useState(false);
   const [erro, setErro] = useState('');
   const [salvando, setSalvando] = useState(false);
   const [perguntaVigencia, setPerguntaVigencia] = useState(false);
@@ -75,6 +79,20 @@ export function FormularioHabito({ habito, hoje, aoFechar, aoArquivar, aoDuplica
     }));
     setErro('');
   }
+
+  // RF-78: cores fora da paleta (dos outros hábitos e a escolhida agora), em um toque.
+  const coresExtras = useMemo(() => {
+    const vistas = new Set(PALETA_CORES.map((c) => c.toUpperCase()));
+    const lista: string[] = [];
+    for (const c of [f.cor, ...outrosHabitos.map((h) => h.cor)]) {
+      const u = c.toUpperCase();
+      if (!vistas.has(u)) {
+        vistas.add(u);
+        lista.push(c);
+      }
+    }
+    return lista;
+  }, [f.cor, outrosHabitos]);
 
   const categorias = listarCategorias(categoriasUsadas, escrevendoCategoria ? '' : f.categoria);
   const temBlocos = f.tipo === 'quantidade' || f.tipo === 'limite';
@@ -396,13 +414,38 @@ export function FormularioHabito({ habito, hoje, aoFechar, aoArquivar, aoDuplica
                     key={c}
                     type="button"
                     aria-label={`Cor ${c}`}
-                    aria-pressed={f.cor === c}
+                    aria-pressed={f.cor.toUpperCase() === c.toUpperCase()}
                     onClick={() => mudar('cor', c)}
-                    className={`size-11 rounded-full border-0 p-0 ${f.cor === c ? 'ring-[3px] ring-texto ring-offset-2 ring-offset-fundo' : ''}`}
+                    className={`size-11 rounded-full border-0 p-0 ${f.cor.toUpperCase() === c.toUpperCase() ? 'ring-[3px] ring-texto ring-offset-2 ring-offset-fundo' : ''}`}
                     style={{ background: c }}
                   />
                 ))}
               </div>
+              {coresExtras.length > 0 && (
+                <div className="mt-1 flex flex-col gap-1.5">
+                  <span className={ajuda}>Cores dos meus hábitos</span>
+                  <div className="flex flex-wrap gap-2.5">
+                    {coresExtras.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        aria-label={`Cor ${c}`}
+                        aria-pressed={f.cor.toUpperCase() === c.toUpperCase()}
+                        onClick={() => mudar('cor', c)}
+                        className={`size-11 rounded-full border-0 p-0 ${f.cor.toUpperCase() === c.toUpperCase() ? 'ring-[3px] ring-texto ring-offset-2 ring-offset-fundo' : ''}`}
+                        style={{ background: c }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => setMaisCores(true)}
+                className="mt-1 h-11 self-start rounded-full border-[1.5px] border-verde-texto bg-cartao px-4 text-[14px] font-semibold text-verde-texto"
+              >
+                + Mais cores
+              </button>
               <p className={ajuda}>A cor aparece no ícone do hábito, na aba Hábitos e na tela Hoje.</p>
             </fieldset>
 
@@ -524,6 +567,19 @@ export function FormularioHabito({ habito, hoje, aoFechar, aoArquivar, aoDuplica
           </div>
         </div>
       </div>
+
+      {maisCores && (
+        <SeletorCor
+          corAtual={f.cor}
+          icone={f.icone}
+          outrosHabitos={outrosHabitos}
+          aoUsar={(cor) => {
+            mudar('cor', cor);
+            setMaisCores(false);
+          }}
+          aoCancelar={() => setMaisCores(false)}
+        />
+      )}
 
       {perguntaVigencia && (
         <div

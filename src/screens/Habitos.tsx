@@ -223,6 +223,9 @@ export default function Habitos() {
           habito={editado}
           hoje={hoje}
           categoriasUsadas={(habitos ?? []).map((h) => h.habito.categoria)}
+          outrosHabitos={(habitos ?? [])
+            .filter((h) => h.habito.id !== editado?.habito.id)
+            .map((h) => ({ id: h.habito.id, nome: h.habito.nome, cor: h.habito.cor, icone: h.habito.icone }))}
           aoFechar={fecharTudo}
           aoArquivar={editado && editado.habito.status === 'ativo' ? () => setConfirmandoArquivar(true) : undefined}
           aoDuplicar={editado ? () => void duplicar() : undefined}

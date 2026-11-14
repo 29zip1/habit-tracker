@@ -121,3 +121,30 @@ button {
     transition: none !important;
   }
 }
+
+/* RF-78: barras de cor (matiz, intensidade, claridade) */
+input[type='range'].barra-cor {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid var(--color-borda);
+  margin: 0;
+}
+input[type='range'].barra-cor::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: #fff;
+  border: 3px solid #1b1f1d;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+input[type='range'].barra-cor::-moz-range-thumb {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: #fff;
+  border: 3px solid #1b1f1d;
+}
