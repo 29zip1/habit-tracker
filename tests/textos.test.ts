@@ -15,6 +15,7 @@ import {
   textoLimiteAtingido,
   textoQuantidade,
   textoRegistros,
+  larguraBarraSemanal,
   textoSemanal,
 } from '../src/services/textos';
 
@@ -68,11 +69,26 @@ describe('textos da tela Hoje', () => {
   });
 
   it('semanal (T-07)', () => {
-    expect(textoSemanal(4, 5, false, true)).toBe('4 de 5 na semana');
-    expect(textoSemanal(4, 5, true, true)).toBe('4 de 5 na semana · hoje feito');
-    expect(textoSemanal(4, 5, true, false)).toBe('4 de 5 na semana · feito neste dia');
-    expect(textoSemanal(5, 5, true, true)).toBe('Meta da semana batida · 5 de 5');
-    expect(textoSemanal(6, 5, true, true)).toBe('Meta da semana batida · 5 de 5');
+    expect(textoSemanal(4, 5)).toBe('4 de 5 na semana');
+    expect(textoSemanal(5, 5)).toBe('Meta da semana batida · 5 de 5');
+    expect(textoSemanal(6, 5)).toBe('Meta da semana batida · 5 de 5');
+  });
+
+  it('T-79a: o texto semanal nunca traz "hoje feito" nem "feito neste dia"', () => {
+    for (const c of [0, 1, 2, 4]) expect(textoSemanal(c, 5)).not.toMatch(/feito/);
+  });
+
+  it('T-79b: largura da barra semanal (RF-79)', () => {
+    // hoje, não marcado: vazia
+    expect(larguraBarraSemanal(1, 5, false, true)).toBe(0);
+    // hoje, marcado: contagem ÷ meta
+    expect(larguraBarraSemanal(2, 5, true, true)).toBe(40);
+    // dia passado: acumulado até o dia, marcado ou não
+    expect(larguraBarraSemanal(1, 5, false, false)).toBe(20);
+    expect(larguraBarraSemanal(3, 5, true, false)).toBe(60);
+    // meta batida: cheia, mesmo hoje sem marcar
+    expect(larguraBarraSemanal(5, 5, false, true)).toBe(100);
+    expect(larguraBarraSemanal(6, 5, true, false)).toBe(100);
   });
 
   it('conclusão (T-06b)', () => {

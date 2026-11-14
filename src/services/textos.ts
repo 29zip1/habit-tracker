@@ -65,10 +65,21 @@ export function textoLimiteAtingido(total: number, unidade: string): string {
   return `Quantidade atingida · ${formatarNumero(total)} ${unidade}`;
 }
 
-export function textoSemanal(contagem: number, meta: number, marcadoNoDia: boolean, ehHoje: boolean): string {
+/** RF-79: o texto mostra só a contagem da semana (sem "hoje feito"). */
+export function textoSemanal(contagem: number, meta: number): string {
   if (contagem >= meta) return `Meta da semana batida · ${meta} de ${meta}`;
-  const feito = marcadoNoDia ? (ehHoje ? ' · hoje feito' : ' · feito neste dia') : '';
-  return `${contagem} de ${meta} na semana${feito}`;
+  return `${contagem} de ${meta} na semana`;
+}
+
+/**
+ * RF-79: largura (0 a 100) da barra do hábito semanal.
+ * Hoje, enquanto o hábito não foi marcado, a barra fica vazia (para não parecer que já foi feito hoje);
+ * com a meta da semana batida ela fica cheia; em dia passado mostra o acumulado até aquele dia.
+ */
+export function larguraBarraSemanal(contagem: number, meta: number, marcadoNoDia: boolean, ehHoje: boolean): number {
+  if (contagem >= meta) return 100;
+  if (ehHoje && !marcadoNoDia) return 0;
+  return Math.round(Math.min(contagem / meta, 1) * 100);
 }
 
 export function textoConclusao(marcado: boolean, ehHoje: boolean): string {

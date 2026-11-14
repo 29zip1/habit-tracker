@@ -8,6 +8,7 @@ import {
   textoLimite,
   textoLimiteAtingido,
   textoQuantidade,
+  larguraBarraSemanal,
   textoSemanal,
 } from '../services/textos';
 import { useSegurar } from '../hooks/useSegurar';
@@ -123,8 +124,8 @@ export function LinhaHabito({
     texto = textoConclusao(r.marcadoNoDia, ehHoje);
     temBarra = false;
   } else if (semanal) {
-    texto = textoSemanal(r.contagemSemana ?? 0, v.meta, r.marcadoNoDia, ehHoje);
-    verdePct = Math.round(Math.min((r.contagemSemana ?? 0) / v.meta, 1) * 100);
+    texto = textoSemanal(r.contagemSemana ?? 0, v.meta);
+    verdePct = larguraBarraSemanal(r.contagemSemana ?? 0, v.meta, r.marcadoNoDia, ehHoje);
   } else if (quantidade) {
     texto = textoQuantidade(r.total, v.meta, v.unidade);
     verdePct = Math.round(Math.min(r.total / v.meta, 1) * 100); // sempre verde, sem trecho amarelo (RF-12)
