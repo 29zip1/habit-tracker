@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { db } from '../database/db';
 import { operacoes } from '../database/operacoes';
 import type { EntradaDia } from '../services/calculos';
-import { arredondar, calcularDia, limiteAtingido, versaoVigente } from '../services/calculos';
+import { arredondar, calcularDia, diaEditavel, limiteAtingido, versaoVigente } from '../services/calculos';
 import { formatarHorario, somarDias } from '../services/datas';
 import {
   dataCurta,
@@ -31,7 +31,7 @@ interface JanelaAberta extends ConfigJanela {
 
 const botaoSecundario =
   'h-11 rounded-full border-[1.5px] border-verde-texto bg-transparent px-[22px] text-[14px] font-semibold text-verde-texto';
-const botaoLink = 'h-11 rounded-full border-0 bg-transparent px-3 text-[14px] font-semibold text-verde-texto underline';
+const botaoLink = 'h-11 rounded-full border-0 bg-transparent px-3 text-[14px] font-semibold text-verde-texto underline disabled:opacity-40 disabled:no-underline';
 
 interface PropsHoje {
   irParaAjustes: () => void;
@@ -71,6 +71,14 @@ export default function Hoje({ irParaAjustes, irParaHabitos, diaInicial = null, 
   );
   const entrada = entradaCarregada && entradaCarregada.data === data ? entradaCarregada : null;
 
+  // RF-75: dia fechado fica travado. Um dia PASSADO reaberto vale só nesta tela, em memória:
+  // trocar de dia, de aba ou fechar o app trava de novo. Nada disso é gravado no banco.
+  const [reabertoEm, setReabertoEm] = useState<DataLocal | null>(null);
+  useEffect(() => {
+    setReabertoEm(null);
+  }, [data]);
+  const editavel = diaEditavel(data, hoje, entrada?.dia, reabertoEm === data);
+
   const resumo = useMemo(() => (entrada ? calcularDia(entrada) : null), [entrada]);
   const faixa = useMemo(() => entradasFaixa.map(calcularDia), [entradasFaixa]);
 
@@ -105,6 +113,7 @@ export default function Hoje({ irParaAjustes, irParaHabitos, diaInicial = null, 
   // ----- ações -----
 
   async function registrar(item: ItemHabito, valor: number, origem: OrigemRegistro, horario?: string) {
+    if (!editavel) return;
     const { versao: v, habito } = item;
     const antes = item.resumo.total;
     const depois = arredondar(antes + valor);
@@ -123,6 +132,7 @@ export default function Hoje({ irParaAjustes, irParaHabitos, diaInicial = null, 
   }
 
   async function alternar(item: ItemHabito) {
+    if (!editavel) return;
     const { versao: v, habito, resumo: r } = item;
     const marcado = await operacoes.alternarMarcacao(habito.id, data);
     const novaContagem = (r.contagemSemana ?? 0) + (marcado ? 1 : -1);
@@ -141,6 +151,7 @@ export default function Hoje({ irParaAjustes, irParaHabitos, diaInicial = null, 
   }
 
   async function desfazerTudo(item: ItemHabito) {
+    if (!editavel) return;
     const removidos = await operacoes.excluirRegistrosDoDia(item.habito.id, data);
     if (removidos.length === 0) return;
     mostrar({
@@ -153,6 +164,19 @@ export default function Hoje({ irParaAjustes, irParaHabitos, diaInicial = null, 
   }
 
   async function finalizarOuReabrir() {
+    if (!ehHoje) {
+      // Dia passado: só muda o estado desta tela (nada é gravado).
+      const estavaReaberto = reabertoEm === data;
+      setReabertoEm(estavaReaberto ? null : data);
+      mostrar({
+        rotulo: estavaReaberto ? 'Dia finalizado' : 'Dia reaberto',
+        cruzou: false,
+        desfazer: async () => {
+          setReabertoEm(estavaReaberto ? data : null);
+        },
+      });
+      return;
+    }
     const fechadoAntes = entrada?.dia?.fechado === true;
     await operacoes.salvarDia(data, { fechado: !fechadoAntes });
     mostrar({
@@ -165,6 +189,7 @@ export default function Hoje({ irParaAjustes, irParaHabitos, diaInicial = null, 
   }
 
   async function alternarFolga() {
+    if (!editavel) return;
     const folgaAntes = entrada?.dia?.folga === true;
     await operacoes.salvarDia(data, { folga: !folgaAntes });
     mostrar({
@@ -177,6 +202,7 @@ export default function Hoje({ irParaAjustes, irParaHabitos, diaInicial = null, 
   }
 
   async function salvarNota(texto: string) {
+    if (!editavel) return;
     const antes = entrada?.dia?.nota ?? '';
     await operacoes.salvarDia(data, { nota: texto === '' ? undefined : texto });
     setNotaAberta(false);
@@ -241,7 +267,7 @@ export default function Hoje({ irParaAjustes, irParaHabitos, diaInicial = null, 
   }
 
   async function confirmarJanela(valor: number, horario?: string) {
-    if (!janela) return;
+    if (!janela || !editavel) return;
     const item = itens.find((i) => i.habito.id === janela.habitoId);
     const atual = janela;
     setJanela(null);
@@ -261,6 +287,7 @@ export default function Hoje({ irParaAjustes, irParaHabitos, diaInicial = null, 
   }
 
   async function excluirRegistro(registro: Registro) {
+    if (!editavel) return;
     const removido = await operacoes.excluirRegistro(registro.id);
     if (!removido) return;
     mostrar({
@@ -272,7 +299,6 @@ export default function Hoje({ irParaAjustes, irParaHabitos, diaInicial = null, 
     });
   }
 
-  const fechadoManual = entrada?.dia?.fechado === true;
   const emFolga = entrada?.dia?.folga === true;
   const nota = entrada?.dia?.nota ?? '';
 
@@ -285,7 +311,35 @@ export default function Hoje({ irParaAjustes, irParaHabitos, diaInicial = null, 
         style={{ height: 'var(--topo-seguro)', marginBottom: 'calc(-1 * var(--topo-seguro))' }}
       />
       <div style={{ paddingTop: 'var(--topo-seguro)' }}>
-      {!ehHoje && (
+      {resumo && !editavel && (
+        <div role="status" className="mx-4 mb-3 flex flex-col gap-1 rounded-2xl bg-aviso px-4 py-2 text-[14px] text-aviso-texto">
+          {!ehHoje && (
+            <span>
+              <strong>{dataCurta(data)}</strong> · {diaSemanaLongo(data).toLowerCase()}
+            </span>
+          )}
+          <span>Dia fechado. Para editar, toque em Reabrir dia.</span>
+          <div className="flex flex-wrap items-center gap-1">
+            <button
+              type="button"
+              onClick={() => void finalizarOuReabrir()}
+              className="h-11 rounded-full border-0 bg-transparent px-3 text-[14px] font-bold text-aviso-desfazer"
+            >
+              Reabrir dia
+            </button>
+            {!ehHoje && (
+              <button
+                type="button"
+                onClick={() => setEscolhida(null)}
+                className="h-11 rounded-full border-0 bg-transparent px-3 text-[14px] font-bold text-aviso-desfazer"
+              >
+                Voltar para hoje
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      {!ehHoje && editavel && (
         <div className="mx-4 mb-3 flex items-center justify-between rounded-2xl bg-verde-claro px-4 py-2 text-[14px]">
           <span>
             Editando <strong>{dataCurta(data)}</strong> · {diaSemanaLongo(data).toLowerCase()}
@@ -353,6 +407,7 @@ export default function Hoje({ irParaAjustes, irParaHabitos, diaInicial = null, 
             aoAlternar={() => void alternar(item)}
             aoDesfazerTudo={() => void desfazerTudo(item)}
             aoAbrirRegistros={() => setPainelId(item.habito.id)}
+            editavel={editavel}
           />
         ))}
       </section>
@@ -364,15 +419,17 @@ export default function Hoje({ irParaAjustes, irParaHabitos, diaInicial = null, 
         </p>
       )}
 
-      {resumo && ehHoje && (
+      {resumo && (
         <div className="mx-4 mt-3 flex flex-col items-center gap-1.5">
           <button type="button" onClick={() => void finalizarOuReabrir()} className={botaoSecundario}>
-            {fechadoManual ? 'Reabrir dia' : 'Finalizar dia'}
+            {editavel ? 'Finalizar dia' : 'Reabrir dia'}
           </button>
           <div className="text-center text-[12px] text-texto2">
-            {fechadoManual
-              ? 'Dia finalizado. Tudo fica salvo neste iPhone.'
-              : 'O dia fecha sozinho à meia-noite. Tudo fica salvo neste iPhone.'}
+            {!editavel
+              ? 'Dia fechado. Tudo fica salvo neste iPhone.'
+              : ehHoje
+                ? 'O dia fecha sozinho à meia-noite. Tudo fica salvo neste iPhone.'
+                : 'Dia reaberto. Ele trava de novo quando você sair desta tela.'}
           </div>
         </div>
       )}
@@ -386,10 +443,10 @@ export default function Hoje({ irParaAjustes, irParaHabitos, diaInicial = null, 
             </p>
           )}
           <div className="flex flex-wrap items-center justify-center">
-            <button type="button" onClick={() => setNotaAberta(true)} className={botaoLink}>
+            <button type="button" disabled={!editavel} onClick={() => setNotaAberta(true)} className={botaoLink}>
               {nota === '' ? 'Nota do dia' : 'Editar nota'}
             </button>
-            <button type="button" onClick={() => void alternarFolga()} className={botaoLink}>
+            <button type="button" disabled={!editavel} onClick={() => void alternarFolga()} className={botaoLink}>
               {emFolga ? 'Remover folga' : 'Dia de folga'}
             </button>
           </div>
@@ -410,6 +467,7 @@ export default function Hoje({ irParaAjustes, irParaHabitos, diaInicial = null, 
           aoExcluir={(r) => void excluirRegistro(r)}
           aoRegistroManual={() => abrirManual(itemDoPainel)}
           aoFechar={() => setPainelId(null)}
+          somenteLeitura={!editavel}
         />
       )}
 

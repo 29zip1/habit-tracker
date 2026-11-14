@@ -87,18 +87,3 @@ export class BancoHabitos extends Dexie {
 }
 
 export const db = new BancoHabitos();
-
-export async function lerContador(): Promise<DadoTeste | undefined> {
-  return db.teste.get('contador');
-}
-
-export async function somarContador(): Promise<DadoTeste> {
-  const atual = await lerContador();
-  const novo: DadoTeste = {
-    id: 'contador',
-    valor: (atual?.valor ?? 0) + 1,
-    atualizadoEm: new Date().toLocaleString('pt-BR'),
-  };
-  await db.teste.put(novo);
-  return novo;
-}

@@ -12,6 +12,8 @@ interface Props {
   aoExcluir: (registro: Registro) => void;
   aoRegistroManual: () => void;
   aoFechar: () => void;
+  /** RF-75: dia fechado só mostra os registros, sem corrigir, excluir ou acrescentar. */
+  somenteLeitura?: boolean;
 }
 
 /** RF-16: registros do dia de um hábito, com corrigir, excluir e registro manual. */
@@ -24,6 +26,7 @@ export function PainelRegistros({
   aoExcluir,
   aoRegistroManual,
   aoFechar,
+  somenteLeitura = false,
 }: Props) {
   return (
     <div
@@ -53,34 +56,40 @@ export function PainelRegistros({
               <div className="flex-1 text-[16px] font-semibold">
                 +{formatarNumero(r.valor)} {unidade}
               </div>
-              <button
-                type="button"
-                aria-label={`Corrigir registro das ${r.horario}`}
-                onClick={() => aoCorrigir(r)}
-                className="h-11 rounded-full border-[1.5px] border-borda-bloco bg-cartao px-3.5 text-[14px] font-semibold text-verde-texto"
-              >
-                Corrigir
-              </button>
-              <button
-                type="button"
-                aria-label={`Excluir registro das ${r.horario}`}
-                onClick={() => aoExcluir(r)}
-                className="flex size-11 items-center justify-center rounded-full border-0 bg-transparent p-0"
-              >
-                <Trash2 size={20} strokeWidth={2} color="var(--color-vermelho)" aria-hidden="true" />
-              </button>
+              {!somenteLeitura && (
+                <>
+                  <button
+                    type="button"
+                    aria-label={`Corrigir registro das ${r.horario}`}
+                    onClick={() => aoCorrigir(r)}
+                    className="h-11 rounded-full border-[1.5px] border-borda-bloco bg-cartao px-3.5 text-[14px] font-semibold text-verde-texto"
+                  >
+                    Corrigir
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Excluir registro das ${r.horario}`}
+                    onClick={() => aoExcluir(r)}
+                    className="flex size-11 items-center justify-center rounded-full border-0 bg-transparent p-0"
+                  >
+                    <Trash2 size={20} strokeWidth={2} color="var(--color-vermelho)" aria-hidden="true" />
+                  </button>
+                </>
+              )}
             </li>
           ))}
         </ul>
 
         <div className="flex gap-2.5 pt-1">
-          <button
-            type="button"
-            onClick={aoRegistroManual}
-            className="h-12 flex-1 rounded-full border-[1.5px] border-verde-texto bg-cartao text-[15px] font-semibold text-verde-texto"
-          >
-            + Registro manual
-          </button>
+          {!somenteLeitura && (
+            <button
+              type="button"
+              onClick={aoRegistroManual}
+              className="h-12 flex-1 rounded-full border-[1.5px] border-verde-texto bg-cartao text-[15px] font-semibold text-verde-texto"
+            >
+              + Registro manual
+            </button>
+          )}
           <button
             type="button"
             onClick={aoFechar}

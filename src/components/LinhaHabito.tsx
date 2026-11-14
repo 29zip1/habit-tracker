@@ -31,15 +31,28 @@ interface Props {
   aoDesfazerTudo: () => void;
   /** RF-16: tocar no ícone ou no nome abre os registros do dia. */
   aoAbrirRegistros: () => void;
+  /** RF-75: dia fechado fica travado (só visualização). */
+  editavel: boolean;
 }
 
-function CheckBotao({ feito, aria, aoTocar }: { feito: boolean; aria: string; aoTocar: () => void }) {
+function CheckBotao({
+  feito,
+  aria,
+  aoTocar,
+  editavel,
+}: {
+  feito: boolean;
+  aria: string;
+  aoTocar: () => void;
+  editavel: boolean;
+}) {
   return (
     <button
       type="button"
       aria-label={aria}
       onClick={aoTocar}
-      className="flex size-11 shrink-0 items-center justify-center border-0 bg-transparent p-0"
+      disabled={!editavel}
+      className="flex size-11 shrink-0 items-center justify-center border-0 bg-transparent p-0 disabled:opacity-60"
     >
       {feito ? (
         <span className="flex size-8 items-center justify-center rounded-full bg-verde">
@@ -57,11 +70,13 @@ function BotaoBloco({
   aria,
   aoToque,
   aoSegurar,
+  editavel,
 }: {
   rotulo: string;
   aria: string;
   aoToque: () => void;
   aoSegurar: () => void;
+  editavel: boolean;
 }) {
   const gestos = useSegurar(aoToque, aoSegurar);
   return (
@@ -69,7 +84,8 @@ function BotaoBloco({
       type="button"
       aria-label={aria}
       {...gestos}
-      className="sem-selecao h-11 min-w-[52px] rounded-full border-[1.5px] border-borda-bloco bg-cartao px-3 text-[14px] font-semibold text-verde-texto"
+      disabled={!editavel}
+      className="sem-selecao h-11 min-w-[52px] rounded-full border-[1.5px] border-borda-bloco bg-cartao px-3 text-[14px] font-semibold text-verde-texto disabled:opacity-50"
     >
       {rotulo}
     </button>
@@ -86,6 +102,7 @@ export function LinhaHabito({
   aoAlternar,
   aoDesfazerTudo,
   aoAbrirRegistros,
+  editavel,
 }: Props) {
   const { habito, versao: v, resumo: r } = item;
   const quantidade = v.tipo === 'quantidade';
@@ -193,6 +210,7 @@ export function LinhaHabito({
               aria={`Adicionar ${formatarNumero(b)} ${v.unidade} em ${habito.nome}. Segure para digitar outro valor`}
               aoToque={() => aoSomar(b)}
               aoSegurar={() => aoSegurar(b)}
+              editavel={editavel}
             />
           ))}
         {(quantidade || limite) && feito && (
@@ -200,6 +218,7 @@ export function LinhaHabito({
             feito
             aria={`${limite ? 'Quantidade atingida' : 'Meta batida'}. Toque para desfazer todo o registro de ${habito.nome} neste dia`}
             aoTocar={aoDesfazerTudo}
+            editavel={editavel}
           />
         )}
         {(conclusao || semanal) && (
@@ -207,6 +226,7 @@ export function LinhaHabito({
             feito={r.marcadoNoDia}
             aria={`${habito.nome}: ${r.marcadoNoDia ? 'feito. Toque para desmarcar' : 'pendente. Toque para marcar'}`}
             aoTocar={aoAlternar}
+            editavel={editavel}
           />
         )}
       </div>

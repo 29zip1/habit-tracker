@@ -1,11 +1,10 @@
-import { useEffect, useState } from 'react';
-import { Check, Download, RefreshCw, Smartphone } from 'lucide-react';
-import { db, lerContador, somarContador, type DadoTeste } from '../database/db';
+import { useEffect, useRef, useState } from 'react';
+import { Check, RefreshCw, Smartphone } from 'lucide-react';
+import { db } from '../database/db';
 import { operacoes } from '../database/operacoes';
 import { dataLogica } from '../services/datas';
 import { CONFIG_PADRAO } from '../types';
 import { estaInstalado, lerArmazenamento, type StatusArmazenamento } from '../services/ambiente';
-import { salvarArquivoTeste, type TipoTeste } from '../services/arquivoTeste';
 import { ImportarHabitos } from '../components/ImportarHabitos';
 import { criarCopiaDeSeguranca } from '../database/copias';
 import { SecaoBackup } from '../components/SecaoBackup';
@@ -13,17 +12,15 @@ import { useLive } from '../hooks/useLive';
 import type { useAtualizacao } from '../hooks/useAtualizacao';
 
 const botao = 'min-h-[48px] rounded-full px-5 text-[15px] font-semibold active:opacity-80';
-const botaoPrincipal = `${botao} bg-verde text-white`;
 const botaoContorno = `${botao} border-[1.5px] border-verde-texto bg-cartao text-verde-texto`;
 const cartao = 'rounded-2xl border border-borda bg-cartao p-4';
 
 export default function Ajustes({ atualizacao }: { atualizacao: ReturnType<typeof useAtualizacao> }) {
   const instalado = estaInstalado();
-  const [dado, setDado] = useState<DadoTeste | undefined>();
   const [armaz, setArmaz] = useState<StatusArmazenamento | null>(null);
   const [bancoInfo, setBancoInfo] = useState('Verificando…');
   const [mostrarComoInstalar, setMostrarComoInstalar] = useState(false);
-  const [msgArquivo, setMsgArquivo] = useState('');
+  const passosRef = useRef<HTMLOListElement>(null);
   const [msgExemplo, setMsgExemplo] = useState('');
   const [confirmandoRemocao, setConfirmandoRemocao] = useState(false);
 
@@ -35,7 +32,6 @@ export default function Ajustes({ atualizacao }: { atualizacao: ReturnType<typeo
   );
 
   useEffect(() => {
-    void lerContador().then(setDado);
     void lerArmazenamento().then(setArmaz);
     void (async () => {
       try {
@@ -48,14 +44,12 @@ export default function Ajustes({ atualizacao }: { atualizacao: ReturnType<typeo
     })();
   }, [quantosExemplos]);
 
-  async function somar() {
-    setDado(await somarContador());
-    setArmaz(await lerArmazenamento());
-  }
-
-  async function arquivo(tipo: TipoTeste) {
-    setMsgArquivo(await salvarArquivoTeste(tipo));
-  }
+  // RF-76: ao abrir "Como instalar", a tela rola até os passos para o usuário perceber.
+  useEffect(() => {
+    if (!mostrarComoInstalar) return;
+    const reduzir = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+    passosRef.current?.scrollIntoView({ behavior: reduzir ? 'auto' : 'smooth', block: 'start' });
+  }, [mostrarComoInstalar]);
 
   async function removerExemplos() {
     // RF-65/RF-69: antes de excluir, guarda uma cópia dos dados.
@@ -177,22 +171,6 @@ export default function Ajustes({ atualizacao }: { atualizacao: ReturnType<typeo
           </label>
         </section>
 
-        <section className={cartao} aria-labelledby="t-dado">
-          <h2 id="t-dado" className="text-[16px] font-semibold">
-            Dado de teste
-          </h2>
-          <p className="mt-1 text-[14px] text-texto2">
-            Toque, feche o app, ative o modo avião e abra de novo. O número deve continuar igual.
-          </p>
-          <div className="my-3 text-[40px] font-bold">{dado?.valor ?? 0}</div>
-          <div className="mb-3 text-[13px] text-texto2">
-            {dado ? `Última gravação: ${dado.atualizadoEm}` : 'Nada gravado ainda.'}
-          </div>
-          <button type="button" className={botaoPrincipal} onClick={() => void somar()}>
-            + Gravar 1
-          </button>
-        </section>
-
         <section className={cartao} aria-labelledby="t-amb">
           <h2 id="t-amb" className="text-[16px] font-semibold">
             Ambiente
@@ -219,26 +197,6 @@ export default function Ajustes({ atualizacao }: { atualizacao: ReturnType<typeo
           </ul>
         </section>
 
-        <section className={cartao} aria-labelledby="t-arq">
-          <h2 id="t-arq" className="text-[16px] font-semibold">
-            Teste de salvar arquivo
-          </h2>
-          <p className="mt-1 text-[14px] text-texto2">
-            Toque em um botão, escolha &quot;Salvar em Arquivos&quot; e confira se o arquivo aparece.
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button type="button" className={botaoContorno} onClick={() => void arquivo('json')}>
-              <Download className="mr-1 inline" size={16} aria-hidden="true" />
-              Arquivo .json
-            </button>
-            <button type="button" className={botaoContorno} onClick={() => void arquivo('txt')}>
-              <Download className="mr-1 inline" size={16} aria-hidden="true" />
-              Arquivo .txt
-            </button>
-          </div>
-          {msgArquivo && <p className="mt-3 text-[14px]">{msgArquivo}</p>}
-        </section>
-
         <section className={cartao} aria-labelledby="t-ver">
           <h2 id="t-ver" className="text-[16px] font-semibold">
             Versão {__APP_VERSION__}
@@ -259,7 +217,7 @@ export default function Ajustes({ atualizacao }: { atualizacao: ReturnType<typeo
           Como instalar no iPhone
         </button>
         {mostrarComoInstalar && (
-          <ol className={`${cartao} list-decimal space-y-2 pl-8 text-[15px]`}>
+          <ol ref={passosRef} className={`${cartao} list-decimal space-y-2 pl-8 text-[15px]`}>
             <li>Abra este endereço no <strong>Safari</strong> (não use outro navegador).</li>
             <li>Na barra do Safari, toque nos três pontinhos <strong>(⋯)</strong> para abrir o menu.</li>
             <li>Toque em <strong>Adicionar à Tela de Início</strong>. Se não estiver no menu, toque em <strong>Compartilhar</strong> e role a lista até achar essa opção.</li>

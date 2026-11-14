@@ -115,6 +115,18 @@ export function estaFechado(data: DataLocal, hoje: DataLocal, dia?: Dia): boolea
   return data < hoje || dia?.fechado === true;
 }
 
+/**
+ * RF-75: um dia fechado fica travado até o usuário reabrir.
+ * - hoje: editável enquanto não foi finalizado;
+ * - dia passado: travado, a menos que o usuário o tenha reaberto NESTA tela (estado só em memória);
+ * - dia futuro: nunca editável.
+ */
+export function diaEditavel(data: DataLocal, hoje: DataLocal, dia: Dia | undefined, reabertoNaTela: boolean): boolean {
+  if (data > hoje) return false;
+  if (data === hoje) return dia?.fechado !== true;
+  return reabertoNaTela;
+}
+
 /** RF-C3 */
 export function metaBatida(total: number, meta: number): boolean {
   return arredondar(total) >= meta;
