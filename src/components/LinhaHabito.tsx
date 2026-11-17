@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react';
+import { Check, Pencil } from 'lucide-react';
 import type { ResumoHabito } from '../services/calculos';
 import type { Habito, VersaoHabito } from '../types';
 import {
@@ -34,6 +34,9 @@ interface Props {
   aoAbrirRegistros: () => void;
   /** RF-75: dia fechado fica travado (só visualização). */
   editavel: boolean;
+  /** RF-83/84: só existe nos hábitos com medida e/ou observação. `linha` é o resumo cinza do dia. */
+  complemento?: { lapis: boolean; linha: string };
+  aoAbrirComplemento?: () => void;
 }
 
 function CheckBotao({
@@ -104,6 +107,8 @@ export function LinhaHabito({
   aoDesfazerTudo,
   aoAbrirRegistros,
   editavel,
+  complemento,
+  aoAbrirComplemento,
 }: Props) {
   const { habito, versao: v, resumo: r } = item;
   const quantidade = v.tipo === 'quantidade';
@@ -163,6 +168,11 @@ export function LinhaHabito({
       >
         {texto}
       </div>
+      {complemento && complemento.linha !== '' && (
+        <div data-testid="linha-complemento" className="truncate text-[12px] text-texto2">
+          {complemento.linha}
+        </div>
+      )}
       {temBarra && (
         <div className={`flex h-1.5 overflow-hidden rounded-[3px] ${feito ? 'bg-trilho-ok' : 'bg-trilho'}`}>
           <div className="barra h-1.5 bg-verde-barra" style={{ width: `${verdePct}%` }} />
@@ -203,6 +213,17 @@ export function LinhaHabito({
       )}
 
       <div className="flex shrink-0 items-center gap-1.5">
+        {complemento?.lapis && (
+          <button
+            type="button"
+            aria-label={`Anotar medida ou observação de ${habito.nome}`}
+            onClick={aoAbrirComplemento}
+            disabled={!editavel}
+            className="flex size-10 shrink-0 items-center justify-center border-0 bg-transparent p-0 text-texto2 disabled:opacity-40"
+          >
+            <Pencil size={17} aria-hidden="true" />
+          </button>
+        )}
         {temRegistros &&
           v.blocos.map((b) => (
             <BotaoBloco

@@ -10,7 +10,16 @@ import {
   formatarNumero,
   textoRegistros,
 } from '../services/textos';
-import { CONFIG_PADRAO, type DataLocal, type OrigemRegistro, type Registro } from '../types';
+import { tipoAceitaMedida } from '../services/habitos';
+import {
+  CONFIG_PADRAO,
+  type DataLocal,
+  type Medida,
+  type ObservacaoHabito,
+  type OrigemRegistro,
+  type Registro,
+} from '../types';
+import { JanelaComplemento, type ResultadoComplemento } from '../components/JanelaComplemento';
 import { AvisoDesfazer } from '../components/AvisoDesfazer';
 import { Cabecalho } from '../components/Cabecalho';
 import { FaixaBackup } from '../components/FaixaBackup';
@@ -56,6 +65,9 @@ export default function Hoje({ irParaAjustes, irParaHabitos, diaInicial = null, 
   const [painelId, setPainelId] = useState<string | null>(null);
   const [janela, setJanela] = useState<JanelaAberta | null>(null);
   const [notaAberta, setNotaAberta] = useState(false);
+  const [complementoId, setComplementoId] = useState<string | null>(null);
+  const medidasDoDia = useLive(() => operacoes.lerMedidasDoIntervalo(data, data), [data], [] as Medida[]);
+  const observacoesDoDia = useLive(() => operacoes.lerObservacoesDoIntervalo(data, data), [data], [] as ObservacaoHabito[]);
   const totalHabitos = useLive(() => db.habitos.count(), [], -1);
 
   const inicioFaixa = somarDias(hoje, -6);
@@ -159,6 +171,41 @@ export default function Hoje({ irParaAjustes, irParaHabitos, diaInicial = null, 
       cruzou: false,
       desfazer: async () => {
         await operacoes.restaurarRegistros(removidos);
+      },
+    });
+  }
+
+  // ----- medida e observação do hábito (RF-83, RF-84) -----
+
+  const medidaDe = (habitoId: string) => medidasDoDia.find((m) => m.habitoId === habitoId);
+  const observacaoDe = (habitoId: string) => observacoesDoDia.find((o) => o.habitoId === habitoId);
+  const medidaAtiva = (item: ItemHabito) => item.versao.medidaLigada === true && tipoAceitaMedida(item.versao.tipo);
+
+  function complementoDe(item: ItemHabito): { lapis: boolean; linha: string } | undefined {
+    const m = medidaDe(item.habito.id);
+    const o = observacaoDe(item.habito.id);
+    const lapis = medidaAtiva(item) || item.versao.observacaoLigada === true;
+    const partes = [m ? `${formatarNumero(m.valor)} ${m.unidade}` : '', o?.texto ?? ''].filter((p) => p !== '');
+    if (!lapis && partes.length === 0) return undefined;
+    return { lapis, linha: partes.join(' · ') };
+  }
+
+  async function salvarComplemento(item: ItemHabito, r: ResultadoComplemento) {
+    if (!editavel) return;
+    const { habito, versao: v } = item;
+    const antigaM = medidaDe(habito.id);
+    const antigaO = observacaoDe(habito.id);
+    setComplementoId(null);
+    if (medidaAtiva(item)) {
+      if (r.medida === null) await operacoes.removerMedida(habito.id, data);
+      else await operacoes.salvarMedida(habito.id, data, r.medida, v.unidadeMedida ?? '');
+    }
+    if (v.observacaoLigada) await operacoes.salvarObservacaoHabito(habito.id, data, r.observacao);
+    mostrar({
+      rotulo: `Anotação salva · ${habito.nome}`,
+      cruzou: false,
+      desfazer: async () => {
+        await operacoes.restaurarComplementos(habito.id, data, antigaM, antigaO);
       },
     });
   }
@@ -408,6 +455,8 @@ export default function Hoje({ irParaAjustes, irParaHabitos, diaInicial = null, 
             aoDesfazerTudo={() => void desfazerTudo(item)}
             aoAbrirRegistros={() => setPainelId(item.habito.id)}
             editavel={editavel}
+            complemento={complementoDe(item)}
+            aoAbrirComplemento={() => setComplementoId(item.habito.id)}
           />
         ))}
       </section>
@@ -479,6 +528,27 @@ export default function Hoje({ irParaAjustes, irParaHabitos, diaInicial = null, 
           aoCancelar={() => setJanela(null)}
         />
       )}
+
+      {complementoId &&
+        (() => {
+          const item = itens.find((i) => i.habito.id === complementoId);
+          if (!item) return null;
+          const m = medidaDe(item.habito.id);
+          const unidade = item.versao.unidadeMedida ?? '';
+          return (
+            <JanelaComplemento
+              key={`complemento-${item.habito.id}-${data}`}
+              titulo={`${item.habito.nome} · ${ehHoje ? 'hoje' : dataCurta(data)}`}
+              mostrarMedida={medidaAtiva(item)}
+              unidade={unidade}
+              medidaInicial={m && m.unidade === unidade ? formatarNumero(m.valor) : ''}
+              mostrarObservacao={item.versao.observacaoLigada === true}
+              observacaoInicial={observacaoDe(item.habito.id)?.texto ?? ''}
+              aoSalvar={(r) => void salvarComplemento(item, r)}
+              aoCancelar={() => setComplementoId(null)}
+            />
+          );
+        })()}
 
       {notaAberta && (
         <NotaDia

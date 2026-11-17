@@ -7,8 +7,10 @@ import type { EntradaDia, HabitoCompleto } from '../services/calculos';
 import { baixarArquivo, compartilharArquivo } from '../services/compartilhar';
 import { somarDias } from '../services/datas';
 import {
+  avisoDaMedida,
   csvDoRelatorio,
   montarRelatorio,
+  textoDaMedida,
   nomeArquivoRelatorio,
   periodoDoRelatorio,
   ROTULOS_RELATORIO,
@@ -16,7 +18,7 @@ import {
   type TipoRelatorio,
 } from '../services/relatorio';
 import { formatarNumero } from '../services/textos';
-import { CONFIG_PADRAO, type DataLocal } from '../types';
+import { CONFIG_PADRAO, type DataLocal, type Medida, type ObservacaoHabito } from '../types';
 
 const TIPOS: TipoRelatorio[] = ['semana', 'mes', 'mesAnterior', 'personalizado'];
 const plural = (n: number, um: string, varios: string) => `${formatarNumero(n)} ${n === 1 ? um : varios}`;
@@ -46,10 +48,27 @@ export default function Relatorio({ aoVoltar }: { aoVoltar: () => void }) {
     [] as EntradaDia[],
   );
 
+  const medidas = useLive(
+    () => (calculo.ok ? operacoes.lerMedidasDoIntervalo(periodo.inicio, periodo.fim) : Promise.resolve([] as Medida[])),
+    [calculo.ok, periodo.inicio, periodo.fim],
+    [] as Medida[],
+  );
+  const observacoes = useLive(
+    () =>
+      calculo.ok
+        ? operacoes.lerObservacoesDoIntervalo(periodo.inicio, periodo.fim)
+        : Promise.resolve([] as ObservacaoHabito[]),
+    [calculo.ok, periodo.inicio, periodo.fim],
+    [] as ObservacaoHabito[],
+  );
+
   const relatorio = useMemo(
-    () => (calculo.ok ? montarRelatorio(entradas, habitos, periodo, ROTULOS_RELATORIO[tipo], primeira, hoje) : null),
+    () =>
+      calculo.ok
+        ? montarRelatorio(entradas, habitos, periodo, ROTULOS_RELATORIO[tipo], primeira, hoje, medidas, observacoes)
+        : null,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [entradas, habitos, calculo.ok, periodo.inicio, periodo.fim, tipo, primeira, hoje],
+    [entradas, habitos, calculo.ok, periodo.inicio, periodo.fim, tipo, primeira, hoje, medidas, observacoes],
   );
 
   // Os arquivos ficam PRONTOS antes do toque (regra do iPhone para o compartilhamento).
@@ -186,6 +205,12 @@ export default function Relatorio({ aoVoltar }: { aoVoltar: () => void }) {
                     )}
                     {h.tipo === 'quantidade' && <span className="text-texto2">Metas superadas: {h.metasSuperadas}</span>}
                     {h.tipo === 'limite' && <span className="text-texto2">Dias dentro do limite: {h.diasDentroDoLimite}</span>}
+                    {h.medida && (
+                      <>
+                        <span className="text-texto2">Medida anotada: {textoDaMedida(h.medida)}</span>
+                        {avisoDaMedida(h.medida) && <span className="text-[13px] text-texto2">{avisoDaMedida(h.medida)}</span>}
+                      </>
+                    )}
                   </div>
                 ))}
               </div>
@@ -200,6 +225,22 @@ export default function Relatorio({ aoVoltar }: { aoVoltar: () => void }) {
                   {relatorio.notas.map((n, i) => (
                     <div key={n.data} className={`py-3 text-[14px] ${i > 0 ? 'border-t border-linha' : ''}`}>
                       <span className="font-semibold">{dataBr(n.data)}</span> · {n.texto}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {relatorio.observacoes.length > 0 && (
+              <section aria-labelledby="t-ro" className="flex flex-col gap-2">
+                <h2 id="t-ro" className="text-[16px] font-semibold">
+                  Observações dos hábitos
+                </h2>
+                <div className="rounded-[20px] border border-borda bg-cartao px-4 py-1">
+                  {relatorio.observacoes.map((o, i) => (
+                    <div key={`${o.data}-${o.habitoId}`} className={`py-3 text-[14px] ${i > 0 ? 'border-t border-linha' : ''}`}>
+                      <span className="font-semibold">{dataBr(o.data)}</span> · {o.nome}
+                      {o.apagado ? ' (apagado)' : ''} · {o.texto}
                     </div>
                   ))}
                 </div>

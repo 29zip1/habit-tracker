@@ -31,9 +31,9 @@ describe('T-61 · gerar o arquivo de backup', () => {
   it('traz hábitos, versões, registros, marcações, dias, configurações e a versão do formato', async () => {
     const { arquivo } = await backupDeTeste();
     expect(arquivo.formato).toBe('habit-tracker-backup');
-    expect(arquivo.versaoBackup).toBe(1);
+    expect(arquivo.versaoBackup).toBe(2);
     expect(arquivo.versaoApp).toBe('9.9.9');
-    expect(arquivo.contagens).toEqual({ habitos: 3, versoes: 3, registros: 3, marcacoes: 2, dias: 1 });
+    expect(arquivo.contagens).toEqual({ habitos: 3, versoes: 3, registros: 3, marcacoes: 2, dias: 1, medidas: 0, observacoes: 0 });
     expect(arquivo.dados.config?.inicioSemana).toBe(0);
     expect(arquivo.integridade.startsWith('sha256:')).toBe(true);
   });

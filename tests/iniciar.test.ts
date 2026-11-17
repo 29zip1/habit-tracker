@@ -55,7 +55,7 @@ describe('T-66b e RF-71 · migração com cópia antes de migrar', () => {
     const r = await abrirBancoComSeguranca(db, '1.0.0', HOJE);
 
     expect(r).toEqual({ ok: true, migrou: true });
-    expect(db.verno).toBe(4);
+    expect(db.verno).toBe(5);
     expect(await db.habitos.count()).toBe(1);
     expect(await db.registros.count()).toBe(2);
     expect((await db.teste.get('contador'))?.valor).toBe(4);
@@ -132,7 +132,7 @@ describe('T-66b e RF-71 · migração com cópia antes de migrar', () => {
     abertos.push(db);
     const r = await abrirBancoComSeguranca(db, '1.0.0', HOJE);
     expect(r).toEqual({ ok: true, migrou: false });
-    expect((await db.meta.get('versaoFormato'))?.valor).toBe(4);
+    expect((await db.meta.get('versaoFormato'))?.valor).toBe(5);
     expect(await db.meta.get('criadoEm')).toBeTruthy();
   });
 });

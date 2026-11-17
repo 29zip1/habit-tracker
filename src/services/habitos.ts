@@ -58,7 +58,17 @@ export interface FormHabito {
   dataInicial: string;
   dataFinal: string;
   entra: boolean;
+  /** RF-83: complemento "anotar uma medida" (só sim ou não e vezes por semana). */
+  medidaLigada: boolean;
+  /** Valor da lista, ou OUTRA_UNIDADE (aí vale `unidadeMedidaOutra`). */
+  unidadeMedida: string;
+  unidadeMedidaOutra: string;
+  /** RF-84: complemento "anotar observação". */
+  observacaoLigada: boolean;
 }
+
+/** A medida opcional só existe nestes tipos (em quantidade e limite o valor já é o registro). */
+export const tipoAceitaMedida = (tipo: TipoHabito) => tipo === 'conclusao' || tipo === 'semanal';
 
 export function formularioVazio(): FormHabito {
   return {
@@ -77,6 +87,10 @@ export function formularioVazio(): FormHabito {
     dataInicial: '',
     dataFinal: '',
     entra: true,
+    medidaLigada: false,
+    unidadeMedida: 'min',
+    unidadeMedidaOutra: '',
+    observacaoLigada: false,
   };
 }
 
@@ -91,6 +105,8 @@ const comoTexto = (n: number) => String(n).replace('.', ',');
 
 export function habitoParaFormulario(habito: Habito, v: VersaoHabito): FormHabito {
   const naLista = UNIDADES.includes(v.unidade);
+  const medida = v.unidadeMedida ?? '';
+  const medidaNaLista = medida === '' || UNIDADES.includes(medida);
   return {
     nome: habito.nome,
     descricao: habito.descricao ?? '',
@@ -107,6 +123,10 @@ export function habitoParaFormulario(habito: Habito, v: VersaoHabito): FormHabit
     dataInicial: habito.dataInicial ?? '',
     dataFinal: habito.dataFinal ?? '',
     entra: v.entraNoPercentual,
+    medidaLigada: v.medidaLigada === true,
+    unidadeMedida: medidaNaLista ? medida || 'min' : OUTRA_UNIDADE,
+    unidadeMedidaOutra: medidaNaLista ? '' : medida,
+    observacaoLigada: v.observacaoLigada === true,
   };
 }
 
@@ -170,6 +190,14 @@ export function lerFormulario(f: FormHabito): ResultadoForm {
     return { ok: false, erro: 'A data final não pode ser antes da data inicial.' };
   }
 
+  // RF-83: a medida só vale em sim ou não e vezes por semana; precisa de unidade.
+  const medidaLigada = f.medidaLigada && tipoAceitaMedida(f.tipo);
+  let unidadeMedida = '';
+  if (medidaLigada) {
+    unidadeMedida = (f.unidadeMedida === OUTRA_UNIDADE ? f.unidadeMedidaOutra : f.unidadeMedida).trim();
+    if (!unidadeMedida) return { ok: false, erro: 'Escolha ou escreva a unidade da medida (por exemplo, min).' };
+  }
+
   return {
     ok: true,
     campos: {
@@ -192,6 +220,9 @@ export function lerFormulario(f: FormHabito): ResultadoForm {
           : { tipo: 'dias', dias: [...f.dias].sort((a, b) => a - b) },
       entraNoPercentual: f.entra,
       passoAjuste: passo,
+      medidaLigada,
+      unidadeMedida: medidaLigada ? unidadeMedida : undefined,
+      observacaoLigada: f.observacaoLigada,
     },
   };
 }
@@ -211,6 +242,9 @@ export function versaoMudou(atual: VersaoHabito, nova: DadosVersao): boolean {
     mesmaLista(atual.blocos, nova.blocos ?? []) &&
     freqIgual &&
     atual.entraNoPercentual === (nova.entraNoPercentual ?? true) &&
+    (atual.medidaLigada === true) === (nova.medidaLigada === true) &&
+    (atual.medidaLigada !== true || (atual.unidadeMedida ?? '') === (nova.unidadeMedida ?? '')) &&
+    (atual.observacaoLigada === true) === (nova.observacaoLigada === true) &&
     // O passo só importa onde existe a janela de valor.
     (atual.tipo === 'quantidade' || atual.tipo === 'limite' ? atual.passoAjuste === nova.passoAjuste : true)
   );
@@ -235,5 +269,7 @@ export function descreverVersao(v: VersaoHabito): string {
   }
   if (v.blocos.length > 0) base += ` · botões ${v.blocos.map((b) => `+${formatarNumero(b)}`).join(' ')}`;
   if (v.frequencia.tipo === 'dias') base += ` · ${v.frequencia.dias.map((d) => NOMES_DIAS[d]).join(', ')}`;
+  if (v.medidaLigada) base += ` · medida em ${v.unidadeMedida}`;
+  if (v.observacaoLigada) base += ' · observação';
   return base;
 }

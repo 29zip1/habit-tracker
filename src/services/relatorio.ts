@@ -1,6 +1,7 @@
 // Fase 7, Parte B (RF-51): contas, texto e CSV do relatório. Sem acesso ao banco nem à tela.
-import type { DataLocal, TipoHabito } from '../types';
+import type { DataLocal, Medida, ObservacaoHabito, TipoHabito } from '../types';
 import { versaoVigente, type EntradaDia, type HabitoCompleto } from './calculos';
+import { avisoOutraUnidade, medidaLigadaNaVersao, resumirMedidas, type ResumoMedida } from './complementos';
 import { ehDataValida, inicioDaSemana } from './datas';
 import { BOM, escapar, numeroPtBr } from './csv';
 import {
@@ -77,10 +78,21 @@ export interface LinhaHabito {
   metasSuperadas: number;
   /** Só para hábito de limite; null nos outros tipos. */
   diasDentroDoLimite: number | null;
+  /** RF-83: só nos hábitos com a medida ligada; null nos outros. */
+  medida: ResumoMedida | null;
 }
 
 export interface NotaDoDia {
   data: DataLocal;
+  texto: string;
+}
+
+/** RF-84: observação de um hábito num dia. */
+export interface ObservacaoDoHabito {
+  data: DataLocal;
+  habitoId: string;
+  nome: string;
+  apagado: boolean;
   texto: string;
 }
 
@@ -92,6 +104,7 @@ export interface Relatorio {
   metasSuperadas: number;
   habitos: LinhaHabito[];
   notas: NotaDoDia[];
+  observacoes: ObservacaoDoHabito[];
 }
 
 const arredondar = (n: number, casas: number) => Math.round(n * 10 ** casas) / 10 ** casas;
@@ -107,6 +120,8 @@ export function montarRelatorio(
   rotuloPeriodo: string,
   primeiraData: DataLocal | undefined,
   hoje: DataLocal,
+  medidas: Medida[] = [],
+  observacoesHabitos: ObservacaoHabito[] = [],
 ): Relatorio {
   const doPeriodo = entradas.filter((e) => e.data >= periodo.inicio && e.data <= periodo.fim);
   const geral = resumirPeriodo(resumosDosDias(doPeriodo, null), primeiraData, hoje, null);
@@ -146,6 +161,7 @@ export function montarRelatorio(
       mediaPorDia: diasProgramados === 0 ? null : arredondar(total / diasProgramados, 2),
       metasSuperadas,
       diasDentroDoLimite: versao.tipo === 'limite' ? dentro : null,
+      medida: medidaLigadaNaVersao(versao) ? resumirMedidas(medidas, h.habito.id, versao.unidadeMedida, periodo, hoje) : null,
     });
   }
 
@@ -154,8 +170,35 @@ export function montarRelatorio(
     .map((e) => ({ data: e.data, texto: (e.dia?.nota ?? '').trim() }))
     .sort((a, b) => (a.data < b.data ? -1 : 1));
 
-  return { periodo, rotuloPeriodo, geradoEm: hoje, resumo: geral.periodo, metasSuperadas: geral.metasSuperadas, habitos: linhas, notas };
+  const porId = new Map(habitos.map((h) => [h.habito.id, h.habito]));
+  const observacoes: ObservacaoDoHabito[] = [];
+  for (const o of observacoesHabitos) {
+    const h = porId.get(o.habitoId);
+    if (!h || o.data < periodo.inicio || o.data > periodo.fim || o.data > hoje) continue;
+    observacoes.push({ data: o.data, habitoId: o.habitoId, nome: h.nome, apagado: h.status === 'removido', texto: o.texto });
+  }
+  observacoes.sort((a, b) => (a.data === b.data ? a.nome.localeCompare(b.nome) : a.data < b.data ? -1 : 1));
+
+  return {
+    periodo,
+    rotuloPeriodo,
+    geradoEm: hoje,
+    resumo: geral.periodo,
+    metasSuperadas: geral.metasSuperadas,
+    habitos: linhas,
+    notas,
+    observacoes,
+  };
 }
+
+/** "Medida anotada em 3 dias: total 2 h · média 40 min por dia anotado" (texto do relatório). */
+export function textoDaMedida(m: ResumoMedida): string {
+  if (m.diasComMedida === 0) return 'sem medidas anotadas';
+  return `${dias(m.diasComMedida)}: total ${formatarNumero(m.total)} ${m.unidade} · média ${formatarNumero(m.media ?? 0)} ${m.unidade} por dia anotado`;
+}
+
+/** Aviso sobre medidas antigas em outra unidade (null se não há). */
+export const avisoDaMedida = avisoOutraUnidade;
 
 const NOME_DO_TIPO: Record<TipoHabito, string> = {
   conclusao: 'sim ou não',
@@ -198,11 +241,21 @@ export function textoDoRelatorio(r: Relatorio): string {
     }
     if (h.tipo === 'quantidade') L.push(`  Metas superadas: ${h.metasSuperadas}`);
     if (h.tipo === 'limite') L.push(`  Dias dentro do limite: ${h.diasDentroDoLimite}`);
+    if (h.medida) {
+      L.push(`  Medida anotada: ${textoDaMedida(h.medida)}`);
+      const aviso = avisoOutraUnidade(h.medida);
+      if (aviso) L.push(`  ${aviso}`);
+    }
   }
   if (r.notas.length > 0) {
     L.push('');
     L.push('NOTAS');
     for (const n of r.notas) L.push(`${dataBr(n.data)} - ${n.texto}`);
+  }
+  if (r.observacoes.length > 0) {
+    L.push('');
+    L.push('OBSERVAÇÕES DOS HÁBITOS');
+    for (const o of r.observacoes) L.push(`${dataBr(o.data)} - ${o.nome}${o.apagado ? ' (apagado)' : ''} - ${o.texto}`);
   }
   L.push('');
   L.push('Dias sem dados não são falha; dias de folga não contam.');
@@ -211,7 +264,7 @@ export function textoDoRelatorio(r: Relatorio): string {
 
 const linha = (campos: string[]) => campos.map(escapar).join(';');
 
-/** CSV em três blocos separados por linha em branco: resumo, hábitos e notas. */
+/** CSV em quatro blocos separados por linha em branco: resumo, hábitos, notas e observações dos hábitos. */
 export function csvDoRelatorio(r: Relatorio): string {
   const p = r.resumo;
   const num = (n: number | null) => (n === null ? '' : numeroPtBr(n));
@@ -219,7 +272,7 @@ export function csvDoRelatorio(r: Relatorio): string {
   L.push(linha(['periodo_inicio', 'periodo_fim', 'dias_completos', 'dias_contados', 'consistencia_pct', 'dias_parciais', 'dias_sem_dados', 'dias_de_folga', 'sequencia_atual', 'melhor_sequencia', 'metas_superadas']));
   L.push(linha([r.periodo.inicio, r.periodo.fim, num(p.diasCompletos), num(p.diasDoPeriodo), num(p.consistenciaPct), num(p.diasParciais), num(p.diasSemDados), num(p.diasFolga), num(p.sequenciaAtual), num(p.melhorSequencia), num(r.metasSuperadas)]));
   L.push('');
-  L.push(linha(['habito', 'tipo', 'unidade', 'apagado', 'dias_programados', 'dias_feitos', 'total', 'media_por_dia', 'metas_superadas', 'dias_dentro_do_limite']));
+  L.push(linha(['habito', 'tipo', 'unidade', 'apagado', 'dias_programados', 'dias_feitos', 'total', 'media_por_dia', 'metas_superadas', 'dias_dentro_do_limite', 'dias_com_medida', 'total_medida', 'media_medida', 'unidade_medida', 'medidas_outra_unidade']));
   for (const h of r.habitos) {
     L.push(
       linha([
@@ -233,12 +286,20 @@ export function csvDoRelatorio(r: Relatorio): string {
         h.tipo === 'quantidade' || h.tipo === 'limite' ? num(h.mediaPorDia) : '',
         h.tipo === 'quantidade' ? num(h.metasSuperadas) : '',
         num(h.diasDentroDoLimite),
+        h.medida ? num(h.medida.diasComMedida) : '',
+        h.medida && h.medida.diasComMedida > 0 ? num(h.medida.total) : '',
+        h.medida ? num(h.medida.media) : '',
+        h.medida ? h.medida.unidade : '',
+        h.medida ? num(h.medida.outraUnidade) : '',
       ]),
     );
   }
   L.push('');
   L.push(linha(['data', 'nota']));
   for (const n of r.notas) L.push(linha([n.data, n.texto]));
+  L.push('');
+  L.push(linha(['data', 'habito', 'observacao']));
+  for (const o of r.observacoes) L.push(linha([o.data, o.apagado ? `${o.nome} (apagado)` : o.nome, o.texto]));
   return BOM + L.join('\r\n') + '\r\n';
 }
 

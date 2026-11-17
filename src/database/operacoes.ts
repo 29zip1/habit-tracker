@@ -8,12 +8,14 @@ import type {
   Frequencia,
   Habito,
   Marcacao,
+  Medida,
+  ObservacaoHabito,
   OrigemRegistro,
   Registro,
   TipoHabito,
   VersaoHabito,
 } from '../types';
-import { CONFIG_PADRAO, VERSAO_FORMATO_BANCO } from '../types';
+import { CONFIG_PADRAO, LIMITE_OBSERVACAO, VERSAO_FORMATO_BANCO } from '../types';
 import { entraNoPercentualPadrao, type EntradaDia, type HabitoCompleto } from '../services/calculos';
 import {
   diasDaSemana,
@@ -35,6 +37,9 @@ export interface DadosVersao {
   frequencia?: Frequencia;
   entraNoPercentual?: boolean;
   passoAjuste?: number;
+  medidaLigada?: boolean;
+  unidadeMedida?: string;
+  observacaoLigada?: boolean;
 }
 
 export interface NovoHabito extends DadosVersao {
@@ -68,6 +73,12 @@ export function validarVersao(d: DadosVersao): void {
       throw new Error('Dias da semana inválidos.');
     }
   }
+  if (d.medidaLigada) {
+    if (d.tipo !== 'conclusao' && d.tipo !== 'semanal') {
+      throw new Error('A medida opcional só existe em hábitos de sim ou não e de vezes por semana.');
+    }
+    if (!(d.unidadeMedida ?? '').trim()) throw new Error('Escolha a unidade da medida.');
+  }
 }
 
 function montarVersao(habitoId: string, vigenteDesde: DataLocal, d: DadosVersao): VersaoHabito {
@@ -84,6 +95,9 @@ function montarVersao(habitoId: string, vigenteDesde: DataLocal, d: DadosVersao)
     frequencia: d.tipo === 'semanal' ? { tipo: 'todos' } : (d.frequencia ?? { tipo: 'todos' }),
     entraNoPercentual: d.entraNoPercentual ?? entraNoPercentualPadrao(d.tipo),
     passoAjuste: d.passoAjuste ?? 1,
+    // Complementos (RF-83/84): só gravados quando ligados; sem eles a versão fica como sempre foi.
+    ...(d.medidaLigada ? { medidaLigada: true, unidadeMedida: (d.unidadeMedida ?? '').trim() } : {}),
+    ...(d.observacaoLigada ? { observacaoLigada: true } : {}),
   };
 }
 
@@ -267,6 +281,9 @@ export class Operacoes {
         frequencia: v.frequencia,
         entraNoPercentual: v.entraNoPercentual,
         passoAjuste: v.passoAjuste,
+        medidaLigada: v.medidaLigada,
+        unidadeMedida: v.unidadeMedida,
+        observacaoLigada: v.observacaoLigada,
         vigenteDesde: hoje,
       });
       // posição: logo abaixo do original; os de baixo descem uma casa
@@ -287,7 +304,7 @@ export class Operacoes {
   async excluirHabito(id: string): Promise<{ registros: number; marcacoes: number }> {
     return this.db.transaction(
       'rw',
-      [this.db.habitos, this.db.versoes, this.db.registros, this.db.marcacoes],
+      [this.db.habitos, this.db.versoes, this.db.registros, this.db.marcacoes, this.db.medidas, this.db.observacoes],
       async () => {
         const h = await this.db.habitos.get(id);
         if (!h) throw new Error('Hábito não encontrado.');
@@ -295,6 +312,8 @@ export class Operacoes {
         const marcs = await this.db.marcacoes.where('habitoId').equals(id).primaryKeys();
         await this.db.registros.bulkDelete(regs);
         await this.db.marcacoes.bulkDelete(marcs);
+        await this.db.medidas.filter((m) => m.habitoId === id).delete();
+        await this.db.observacoes.filter((o) => o.habitoId === id).delete();
         await this.db.versoes.where('habitoId').equals(id).delete();
         await this.db.habitos.delete(id);
         return { registros: regs.length, marcacoes: marcs.length };
@@ -402,6 +421,85 @@ export class Operacoes {
     return novo;
   }
 
+  // ----- Medidas e observações por hábito (RF-83, RF-84) -----
+
+  /** Um valor por hábito por dia: substitui o anterior. Devolve o que havia antes (para Desfazer). */
+  async salvarMedida(habitoId: string, data: DataLocal, valor: number, unidade: string): Promise<Medida | undefined> {
+    if (!(valor > 0) || !Number.isFinite(valor)) throw new Error('A medida precisa ser um número maior que zero.');
+    if (!ehDataValida(data)) throw new Error('Data inválida.');
+    if (!unidade.trim()) throw new Error('Escolha a unidade da medida.');
+    return this.db.transaction('rw', this.db.medidas, async () => {
+      const antiga = await this.db.medidas.where('[habitoId+data]').equals([habitoId, data]).first();
+      const t = agora();
+      await this.db.medidas.put({
+        id: antiga?.id ?? novoId(),
+        habitoId,
+        data,
+        valor,
+        unidade: unidade.trim(),
+        criadoEm: antiga?.criadoEm ?? t,
+        editadoEm: t,
+      });
+      return antiga;
+    });
+  }
+
+  /** Remove a medida do dia. Devolve a removida (para Desfazer). */
+  async removerMedida(habitoId: string, data: DataLocal): Promise<Medida | undefined> {
+    return this.db.transaction('rw', this.db.medidas, async () => {
+      const antiga = await this.db.medidas.where('[habitoId+data]').equals([habitoId, data]).first();
+      if (antiga) await this.db.medidas.delete(antiga.id);
+      return antiga;
+    });
+  }
+
+  /** Texto vazio remove. Até 140 caracteres. Devolve o que havia antes (para Desfazer). */
+  async salvarObservacaoHabito(habitoId: string, data: DataLocal, texto: string): Promise<ObservacaoHabito | undefined> {
+    const limpo = texto.trim();
+    if (limpo.length > LIMITE_OBSERVACAO) throw new Error(`A observação aceita até ${LIMITE_OBSERVACAO} caracteres.`);
+    if (!ehDataValida(data)) throw new Error('Data inválida.');
+    return this.db.transaction('rw', this.db.observacoes, async () => {
+      const antiga = await this.db.observacoes.where('[habitoId+data]').equals([habitoId, data]).first();
+      if (limpo === '') {
+        if (antiga) await this.db.observacoes.delete(antiga.id);
+        return antiga;
+      }
+      const t = agora();
+      await this.db.observacoes.put({
+        id: antiga?.id ?? novoId(),
+        habitoId,
+        data,
+        texto: limpo,
+        criadoEm: antiga?.criadoEm ?? t,
+        editadoEm: t,
+      });
+      return antiga;
+    });
+  }
+
+  /** Desfazer: volta a medida e a observação como estavam (ou remove, se não havia). */
+  async restaurarComplementos(
+    habitoId: string,
+    data: DataLocal,
+    medida: Medida | undefined,
+    observacao: ObservacaoHabito | undefined,
+  ): Promise<void> {
+    await this.db.transaction('rw', this.db.medidas, this.db.observacoes, async () => {
+      await this.db.medidas.where('[habitoId+data]').equals([habitoId, data]).delete();
+      await this.db.observacoes.where('[habitoId+data]').equals([habitoId, data]).delete();
+      if (medida) await this.db.medidas.put(medida);
+      if (observacao) await this.db.observacoes.put(observacao);
+    });
+  }
+
+  async lerMedidasDoIntervalo(inicio: DataLocal, fim: DataLocal): Promise<Medida[]> {
+    return this.db.medidas.where('data').between(inicio, fim, true, true).toArray();
+  }
+
+  async lerObservacoesDoIntervalo(inicio: DataLocal, fim: DataLocal): Promise<ObservacaoHabito[]> {
+    return this.db.observacoes.where('data').between(inicio, fim, true, true).toArray();
+  }
+
   // ----- Leitura para os cálculos -----
 
   async lerHabitosCompletos(): Promise<HabitoCompleto[]> {
@@ -461,10 +559,12 @@ export class Operacoes {
   async removerExemplos(): Promise<{ habitos: number; registros: number }> {
     return this.db.transaction(
       'rw',
-      [this.db.habitos, this.db.versoes, this.db.registros, this.db.marcacoes],
+      [this.db.habitos, this.db.versoes, this.db.registros, this.db.marcacoes, this.db.medidas, this.db.observacoes],
       async () => {
         const ex = await this.db.habitos.filter((h) => h.exemplo === true).toArray();
         const ids = ex.map((h) => h.id);
+        await this.db.medidas.where('habitoId').anyOf(ids).delete();
+        await this.db.observacoes.where('habitoId').anyOf(ids).delete();
         const regs = await this.db.registros.where('habitoId').anyOf(ids).primaryKeys();
         await this.db.registros.bulkDelete(regs);
         await this.db.marcacoes.where('habitoId').anyOf(ids).delete();

@@ -15,6 +15,7 @@ import {
   habitoParaFormulario,
   lerFormulario,
   listarCategorias,
+  tipoAceitaMedida,
   versaoMudou,
   type FormHabito,
 } from '../services/habitos';
@@ -380,6 +381,70 @@ export function FormularioHabito({ habito, hoje, aoFechar, aoArquivar, aoDuplica
                 className="size-6 shrink-0 accent-verde"
               />
             </label>
+
+            <fieldset className="flex flex-col gap-2 border-0 p-0" aria-label="Complementos (opcionais)">
+              <legend className={`${rotulo} mb-1.5`}>Complementos (opcionais)</legend>
+              <p className={ajuda}>
+                Desligados por padrão. Aparecem na tela Hoje só nos hábitos em que você ligar, sem meta e sem cobrança.
+              </p>
+              {tipoAceitaMedida(f.tipo) && (
+                <>
+                  <label className="flex min-h-11 items-center justify-between gap-3 text-[15px]">
+                    <span>
+                      Anotar uma medida
+                      <span className={`block ${ajuda}`}>Ex.: minutos, páginas, ml. Um valor por dia, só quando você quiser.</span>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={f.medidaLigada}
+                      onChange={(e) => mudar('medidaLigada', e.target.checked)}
+                      className="size-6 shrink-0 accent-verde"
+                    />
+                  </label>
+                  {f.medidaLigada && (
+                    <label className="flex min-w-0 flex-col gap-1.5">
+                      <span className={rotulo}>Medida em</span>
+                      <select
+                        value={f.unidadeMedida}
+                        onChange={(e) => mudar('unidadeMedida', e.target.value)}
+                        className={campoTexto}
+                      >
+                        {UNIDADES.map((u) => (
+                          <option key={u} value={u}>
+                            {u}
+                          </option>
+                        ))}
+                        <option value={OUTRA_UNIDADE}>Outra…</option>
+                      </select>
+                      {f.unidadeMedida === OUTRA_UNIDADE && (
+                        <input
+                          type="text"
+                          aria-label="Unidade da medida personalizada"
+                          value={f.unidadeMedidaOutra}
+                          maxLength={12}
+                          placeholder="Ex.: capítulos"
+                          onChange={(e) => mudar('unidadeMedidaOutra', e.target.value)}
+                          className={campoTexto}
+                        />
+                      )}
+                      <span className={ajuda}>Sem meta. Não conta na porcentagem do dia.</span>
+                    </label>
+                  )}
+                </>
+              )}
+              <label className="flex min-h-11 items-center justify-between gap-3 text-[15px]">
+                <span>
+                  Anotar observação
+                  <span className={`block ${ajuda}`}>Um texto curto por dia, até 140 caracteres.</span>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={f.observacaoLigada}
+                  onChange={(e) => mudar('observacaoLigada', e.target.checked)}
+                  className="size-6 shrink-0 accent-verde"
+                />
+              </label>
+            </fieldset>
 
             <fieldset className="flex flex-col gap-2 border-0 p-0">
               <legend className={`${rotulo} mb-1.5`}>Ícone</legend>

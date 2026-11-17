@@ -43,7 +43,37 @@ export interface VersaoHabito {
   entraNoPercentual: boolean;
   /** Passo dos botões − e + da janela de valor. */
   passoAjuste: number;
+  /** RF-83: complemento "anotar uma medida" (só conclusão e semanal). Ausente = desligado. */
+  medidaLigada?: boolean;
+  /** RF-83: unidade da medida (vale quando `medidaLigada`). */
+  unidadeMedida?: string;
+  /** RF-84: complemento "anotar observação" (qualquer tipo). Ausente = desligado. */
+  observacaoLigada?: boolean;
 }
+
+/** RF-83: medida opcional de um hábito num dia (no máximo uma por hábito por dia). */
+export interface Medida {
+  id: string;
+  habitoId: string;
+  data: DataLocal;
+  valor: number;
+  /** Unidade em que foi anotada (nunca é convertida). */
+  unidade: string;
+  criadoEm: string;
+  editadoEm: string;
+}
+
+/** RF-84: observação curta de um hábito num dia (no máximo uma por hábito por dia). */
+export interface ObservacaoHabito {
+  id: string;
+  habitoId: string;
+  data: DataLocal;
+  texto: string;
+  criadoEm: string;
+  editadoEm: string;
+}
+
+export const LIMITE_OBSERVACAO = 140;
 
 export type OrigemRegistro = 'bloco' | 'digitado' | 'manual';
 
@@ -125,4 +155,4 @@ export const CONFIG_PADRAO: ConfigApp = {
   avisoBackupDias: 7,
 };
 
-export const VERSAO_FORMATO_BANCO = 4;
+export const VERSAO_FORMATO_BANCO = 5;

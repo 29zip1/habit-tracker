@@ -35,6 +35,8 @@ async function lerLegado(nome: string, versaoApp: string): Promise<Legado | null
       marcacoes: await ler('marcacoes'),
       dias: await ler('dias'),
       config: tabelas.has('config') ? ((await legado.table('config').get('config')) ?? null) : null,
+      medidas: await ler('medidas'),
+      observacoes: await ler('observacoes'),
     };
     const arquivo = await montarBackup(dados, versaoApp);
     return { arquivo, versao: legado.verno, temDados: dados.habitos.length > 0 || dados.registros.length > 0 };

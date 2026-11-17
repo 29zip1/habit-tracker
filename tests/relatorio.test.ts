@@ -180,7 +180,7 @@ describe('T-51n · texto e CSV trazem os mesmos números', () => {
     expect(texto).not.toMatch(/falha:/i);
   });
 
-  it('CSV: BOM, separador ;, vírgula decimal, CRLF e três blocos', () => {
+  it('CSV: BOM, separador ;, vírgula decimal, CRLF e quatro blocos', () => {
     const { r } = relatorioDoMes();
     const csv = csvDoRelatorio(r);
     expect(csv.startsWith('﻿')).toBe(true);
@@ -189,13 +189,18 @@ describe('T-51n · texto e CSV trazem os mesmos números', () => {
     expect(linhas[1]).toBe('2026-11-01;2026-11-10;1;7;14;5;1;1;0;1;1');
     expect(linhas[2]).toBe('');
     expect(linhas[3].split(';')[0]).toBe('habito');
-    expect(linhas[4]).toBe('Cardio;quantidade;min;nao;7;4;145;20,71;1;');
-    expect(linhas[5]).toBe('Meditar;sim ou não;;nao;7;5;;;;');
-    expect(linhas[6]).toBe('Calorias;limite;kcal;nao;7;2;7000;1000;;4');
+    // RF-83: cinco colunas novas no fim (medida); vazias nos hábitos sem a medida ligada.
+    expect(linhas[3]).toMatch(/;dias_com_medida;total_medida;media_medida;unidade_medida;medidas_outra_unidade$/);
+    expect(linhas[4]).toBe('Cardio;quantidade;min;nao;7;4;145;20,71;1;;;;;;');
+    expect(linhas[5]).toBe('Meditar;sim ou não;;nao;7;5;;;;;;;;;');
+    expect(linhas[6]).toBe('Calorias;limite;kcal;nao;7;2;7000;1000;;4;;;;;');
     expect(linhas[7]).toBe('');
     expect(linhas[8]).toBe('data;nota');
     expect(linhas[9]).toBe('2026-11-04;treino leve');
     expect(linhas[10]).toBe('2026-11-09;"viagem; ""fim de semana"""');
+    // RF-84: quarto bloco, das observações dos hábitos.
+    expect(linhas[11]).toBe('');
+    expect(linhas[12]).toBe('data;habito;observacao');
     expect(csv.endsWith('\r\n')).toBe(true);
   });
 

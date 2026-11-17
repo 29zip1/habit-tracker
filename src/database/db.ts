@@ -5,7 +5,9 @@ import type {
   Dia,
   Habito,
   Marcacao,
+  Medida,
   MetaBanco,
+  ObservacaoHabito,
   Registro,
   VersaoHabito,
 } from '../types';
@@ -27,6 +29,8 @@ export class BancoHabitos extends Dexie {
   config!: EntityTable<ConfigApp, 'id'>;
   meta!: EntityTable<MetaBanco, 'chave'>;
   copias!: EntityTable<Copia, 'id'>;
+  medidas!: EntityTable<Medida, 'id'>;
+  observacoes!: EntityTable<ObservacaoHabito, 'id'>;
 
   constructor(nome = 'habit-tracker') {
     super(nome);
@@ -83,6 +87,22 @@ export class BancoHabitos extends Dexie {
             v.entraNoPercentual = true;
           }),
       );
+
+    // Versão 5 (RF-83 e RF-84): só ACRESCENTA as tabelas de medidas e de observações.
+    // Nada é alterado nem apagado; as versões dos hábitos ganham campos opcionais.
+    this.version(5).stores({
+      teste: 'id',
+      habitos: 'id, status, ordem',
+      versoes: 'id, habitoId, [habitoId+vigenteDesde]',
+      registros: 'id, habitoId, data, [habitoId+data]',
+      marcacoes: 'id, data, &[habitoId+data]',
+      dias: 'data',
+      config: 'id',
+      meta: 'chave',
+      copias: 'id, criadaEm, motivo',
+      medidas: 'id, data, &[habitoId+data]',
+      observacoes: 'id, data, &[habitoId+data]',
+    });
   }
 }
 

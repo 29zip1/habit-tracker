@@ -2,12 +2,13 @@
 // Regras: validar TUDO antes de mexer em qualquer coisa; restaurar em uma única
 // transação (ou tudo, ou nada).
 import type { BancoHabitos } from '../database/db';
-import type { ConfigApp, DataLocal, Dia, Habito, Marcacao, Registro, VersaoHabito } from '../types';
-import { CONFIG_PADRAO } from '../types';
+import type { ConfigApp, DataLocal, Dia, Habito, Marcacao, Medida, ObservacaoHabito, Registro, VersaoHabito } from '../types';
+import { CONFIG_PADRAO, LIMITE_OBSERVACAO } from '../types';
 import { ehDataValida, formatarData, formatarHorario } from './datas';
 
 export const FORMATO_BACKUP = 'habit-tracker-backup';
-export const VERSAO_BACKUP = 1;
+// Versão 2 (RF-83/84): acrescenta medidas e observações. Backups da versão 1 continuam sendo aceitos.
+export const VERSAO_BACKUP = 2;
 
 export interface DadosBackup {
   habitos: Habito[];
@@ -16,6 +17,9 @@ export interface DadosBackup {
   marcacoes: Marcacao[];
   dias: Dia[];
   config: ConfigApp | null;
+  /** Ausentes em backups antigos (versão 1): valem como lista vazia. */
+  medidas: Medida[];
+  observacoes: ObservacaoHabito[];
 }
 
 export interface ArquivoBackup {
@@ -23,7 +27,15 @@ export interface ArquivoBackup {
   versaoBackup: number;
   versaoApp: string;
   criadoEm: string;
-  contagens: { habitos: number; versoes: number; registros: number; marcacoes: number; dias: number };
+  contagens: {
+    habitos: number;
+    versoes: number;
+    registros: number;
+    marcacoes: number;
+    dias: number;
+    medidas?: number;
+    observacoes?: number;
+  };
   /** "sha256:..." do texto compacto de `dados`. Serve para recusar arquivo cortado ou alterado. */
   integridade: string;
   dados: DadosBackup;
@@ -62,15 +74,17 @@ export async function calcularIntegridade(texto: string): Promise<string> {
 // ---------- gerar ----------
 
 export async function lerDadosDoBanco(db: BancoHabitos): Promise<DadosBackup> {
-  const [habitos, versoes, registros, marcacoes, dias, config] = await Promise.all([
+  const [habitos, versoes, registros, marcacoes, dias, config, medidas, observacoes] = await Promise.all([
     db.habitos.orderBy('ordem').toArray(),
     db.versoes.toArray(),
     db.registros.toArray(),
     db.marcacoes.toArray(),
     db.dias.toArray(),
     db.config.get('config'),
+    db.medidas.toArray(),
+    db.observacoes.toArray(),
   ]);
-  return { habitos, versoes, registros, marcacoes, dias, config: config ?? null };
+  return { habitos, versoes, registros, marcacoes, dias, config: config ?? null, medidas, observacoes };
 }
 
 export async function montarBackup(
@@ -89,6 +103,8 @@ export async function montarBackup(
       registros: dados.registros.length,
       marcacoes: dados.marcacoes.length,
       dias: dados.dias.length,
+      medidas: dados.medidas.length,
+      observacoes: dados.observacoes.length,
     },
     integridade: await calcularIntegridade(JSON.stringify(dados)),
     dados,
@@ -151,6 +167,14 @@ function validarVersao(v: unknown): string | null {
   } else if (f.tipo !== 'todos') return 'frequência inválida';
   if (typeof v.entraNoPercentual !== 'boolean') return 'opção de percentual inválida';
   if (!ehNumero(v.passoAjuste) || v.passoAjuste <= 0) return 'passo inválido';
+  if (v.medidaLigada !== undefined && typeof v.medidaLigada !== 'boolean') return 'opção de medida inválida';
+  if (v.observacaoLigada !== undefined && typeof v.observacaoLigada !== 'boolean') return 'opção de observação inválida';
+  if (v.unidadeMedida !== undefined && (!ehTexto(v.unidadeMedida) || v.unidadeMedida.length > 12)) {
+    return 'unidade da medida inválida';
+  }
+  if (v.medidaLigada === true && (!ehTexto(v.unidadeMedida) || v.unidadeMedida.trim() === '')) {
+    return 'medida ligada sem unidade';
+  }
   return null;
 }
 
@@ -170,6 +194,25 @@ function validarMarcacao(m: unknown): string | null {
   if (!ehTexto(m.id) || m.id === '' || !ehTexto(m.habitoId)) return 'sem id ou hábito';
   if (!ehData(m.data)) return 'data inválida';
   if (!ehIso(m.criadoEm)) return 'data de criação inválida';
+  return null;
+}
+
+function validarMedida(m: unknown): string | null {
+  if (!ehObjeto(m)) return 'não é um objeto';
+  if (!ehTexto(m.id) || m.id === '' || !ehTexto(m.habitoId)) return 'sem id ou hábito';
+  if (!ehData(m.data)) return 'data inválida';
+  if (!ehNumero(m.valor) || m.valor <= 0) return 'valor inválido';
+  if (!ehTexto(m.unidade) || m.unidade.trim() === '' || m.unidade.length > 12) return 'unidade inválida';
+  if (!ehIso(m.criadoEm) || !ehIso(m.editadoEm)) return 'datas de criação/edição inválidas';
+  return null;
+}
+
+function validarObservacao(o: unknown): string | null {
+  if (!ehObjeto(o)) return 'não é um objeto';
+  if (!ehTexto(o.id) || o.id === '' || !ehTexto(o.habitoId)) return 'sem id ou hábito';
+  if (!ehData(o.data)) return 'data inválida';
+  if (!ehTexto(o.texto) || o.texto.trim() === '' || o.texto.length > LIMITE_OBSERVACAO) return 'texto inválido';
+  if (!ehIso(o.criadoEm) || !ehIso(o.editadoEm)) return 'datas de criação/edição inválidas';
   return null;
 }
 
@@ -242,13 +285,32 @@ export async function validarBackup(texto: string): Promise<ResultadoValidacao> 
   const erroConfig = validarConfig(d.config === undefined ? null : d.config);
   if (erroConfig) return { ok: false, erro: `O arquivo está danificado. Configurações: ${erroConfig}.` };
 
-  const dados: DadosBackup = {
+  // Backups da versão 1 não têm medidas nem observações; nos novos elas vêm juntas.
+  const temComplementos = d.medidas !== undefined || d.observacoes !== undefined;
+  if (temComplementos) {
+    for (const [nome, lista, validar] of [
+      ['medidas', d.medidas, validarMedida],
+      ['observações dos hábitos', d.observacoes, validarObservacao],
+    ] as const) {
+      const erro = checarLista(nome, lista, validar);
+      if (erro) return { ok: false, erro: `O arquivo está danificado. ${erro}` };
+    }
+  }
+
+  // Este objeto é o que a verificação de integridade lê: mesmos campos, na mesma ordem do arquivo original.
+  const dadosLidos = {
     habitos: d.habitos as Habito[],
     versoes: d.versoes as VersaoHabito[],
     registros: d.registros as Registro[],
     marcacoes: d.marcacoes as Marcacao[],
     dias: d.dias as Dia[],
     config: (d.config ?? null) as ConfigApp | null,
+    ...(temComplementos ? { medidas: d.medidas as Medida[], observacoes: d.observacoes as ObservacaoHabito[] } : {}),
+  };
+  const dados: DadosBackup = {
+    ...dadosLidos,
+    medidas: (d.medidas ?? []) as Medida[],
+    observacoes: (d.observacoes ?? []) as ObservacaoHabito[],
   };
 
   // contagens e integridade: arquivo cortado ou alterado é recusado
@@ -258,7 +320,8 @@ export async function validarBackup(texto: string): Promise<ResultadoValidacao> 
     c.versoes === dados.versoes.length &&
     c.registros === dados.registros.length &&
     c.marcacoes === dados.marcacoes.length &&
-    c.dias === dados.dias.length;
+    c.dias === dados.dias.length &&
+    (!temComplementos || (c.medidas === dados.medidas.length && c.observacoes === dados.observacoes.length));
   if (!contagensCertas) {
     return { ok: false, erro: 'O arquivo parece incompleto: as quantidades não batem com o conteúdo.' };
   }
@@ -266,7 +329,7 @@ export async function validarBackup(texto: string): Promise<ResultadoValidacao> 
     return { ok: false, erro: 'Este aparelho não consegue verificar o arquivo agora. Tente abrir o app pelo ícone.' };
   }
   if (bruto.integridade.startsWith('sha256:') || bruto.integridade.startsWith('fnv1a:')) {
-    const esperado = await calcularIntegridade(JSON.stringify(dados));
+    const esperado = await calcularIntegridade(JSON.stringify(dadosLidos));
     if (esperado !== bruto.integridade) {
       return { ok: false, erro: 'O arquivo foi alterado ou está danificado (a verificação de integridade falhou).' };
     }
@@ -279,7 +342,9 @@ export async function validarBackup(texto: string): Promise<ResultadoValidacao> 
     idsRepetidos(dados.habitos) ||
     idsRepetidos(dados.versoes) ||
     idsRepetidos(dados.registros) ||
-    idsRepetidos(dados.marcacoes)
+    idsRepetidos(dados.marcacoes) ||
+    idsRepetidos(dados.medidas) ||
+    idsRepetidos(dados.observacoes)
   ) {
     return { ok: false, erro: 'O arquivo tem itens repetidos (mesmo identificador usado duas vezes).' };
   }
@@ -290,11 +355,19 @@ export async function validarBackup(texto: string): Promise<ResultadoValidacao> 
   if (chavesMarcacao.size !== dados.marcacoes.length) {
     return { ok: false, erro: 'O arquivo tem duas marcações do mesmo hábito no mesmo dia.' };
   }
+  if (
+    new Set(dados.medidas.map((m) => `${m.habitoId}|${m.data}`)).size !== dados.medidas.length ||
+    new Set(dados.observacoes.map((o) => `${o.habitoId}|${o.data}`)).size !== dados.observacoes.length
+  ) {
+    return { ok: false, erro: 'O arquivo tem duas medidas ou duas observações do mesmo hábito no mesmo dia.' };
+  }
   const idsHabitos = new Set(dados.habitos.map((h) => h.id));
   const orfao =
     dados.versoes.some((v) => !idsHabitos.has(v.habitoId)) ||
     dados.registros.some((r) => !idsHabitos.has(r.habitoId)) ||
-    dados.marcacoes.some((m) => !idsHabitos.has(m.habitoId));
+    dados.marcacoes.some((m) => !idsHabitos.has(m.habitoId)) ||
+    dados.medidas.some((m) => !idsHabitos.has(m.habitoId)) ||
+    dados.observacoes.some((o) => !idsHabitos.has(o.habitoId));
   if (orfao) {
     return { ok: false, erro: 'O arquivo tem registros ligados a hábitos que não existem nele.' };
   }
@@ -342,7 +415,7 @@ export async function aplicarBackup(db: BancoHabitos, arquivo: ArquivoBackup): P
   const { dados } = arquivo;
   await db.transaction(
     'rw',
-    [db.habitos, db.versoes, db.registros, db.marcacoes, db.dias, db.config],
+    [db.habitos, db.versoes, db.registros, db.marcacoes, db.dias, db.config, db.medidas, db.observacoes],
     async () => {
       await Promise.all([
         db.habitos.clear(),
@@ -351,12 +424,16 @@ export async function aplicarBackup(db: BancoHabitos, arquivo: ArquivoBackup): P
         db.marcacoes.clear(),
         db.dias.clear(),
         db.config.clear(),
+        db.medidas.clear(),
+        db.observacoes.clear(),
       ]);
       await db.habitos.bulkAdd(dados.habitos);
       await db.versoes.bulkAdd(dados.versoes);
       await db.registros.bulkAdd(dados.registros);
       await db.marcacoes.bulkAdd(dados.marcacoes);
       await db.dias.bulkAdd(dados.dias);
+      await db.medidas.bulkAdd(dados.medidas);
+      await db.observacoes.bulkAdd(dados.observacoes);
       await db.config.put({
         ...CONFIG_PADRAO,
         ...(dados.config ?? {}),

@@ -26,7 +26,13 @@ import {
   type TipoPeriodo,
 } from '../services/historico';
 import { dataCurta, formatarNumero } from '../services/textos';
-import { CONFIG_PADRAO, type DataLocal } from '../types';
+import { CONFIG_PADRAO, type DataLocal, type Medida } from '../types';
+import {
+  avisoOutraUnidade,
+  medidaLigadaNaVersao,
+  resumirMedidas,
+  totaisDeMedidaPorIntervalo,
+} from '../services/complementos';
 
 const PERIODOS: TipoPeriodo[] = ['7', '30', '90', 'ano', 'tudo'];
 const SEMANAS = 8;
@@ -100,26 +106,49 @@ export default function Evolucao() {
     }));
   }, [resumos, meses, primeira, hoje]);
 
-  // Quantidades acumuladas: só hábitos de quantidade e de limite.
+  // Quantidades acumuladas: hábitos de quantidade e de limite, e (RF-83) os que ligaram a medida.
   const comQuantidade = habitos.filter((h) => {
     if (h.habito.status === 'removido') return false;
     const v = versaoVigente(h.versoes, hoje) ?? h.versoes[0];
-    return v && (v.tipo === 'quantidade' || v.tipo === 'limite');
+    return v && (v.tipo === 'quantidade' || v.tipo === 'limite' || medidaLigadaNaVersao(v));
   });
   const habitoAcumulado = comQuantidade.find((h) => h.habito.id === habitoAcum) ?? comQuantidade[0];
-  const unidade = habitoAcumulado ? (versaoVigente(habitoAcumulado.versoes, hoje) ?? habitoAcumulado.versoes[0])?.unidade ?? '' : '';
+  const versaoAcum = habitoAcumulado ? (versaoVigente(habitoAcumulado.versoes, hoje) ?? habitoAcumulado.versoes[0]) : undefined;
+  const acumulaMedida = medidaLigadaNaVersao(versaoAcum) && versaoAcum.tipo !== 'quantidade' && versaoAcum.tipo !== 'limite';
+  const unidade = acumulaMedida ? (versaoAcum?.unidadeMedida ?? '') : (versaoAcum?.unidade ?? '');
+
+  const intervalosAcum = useMemo(
+    () => (agrupar === 'semanas' ? semanas : meses.map(intervaloDoMes)),
+    [agrupar, semanas, meses],
+  );
+  const inicioAcum = intervalosAcum[0].inicio;
+  const medidas = useLive(() => operacoes.lerMedidasDoIntervalo(inicioAcum, hoje), [inicioAcum, hoje], [] as Medida[]);
+  const avisoUnidade =
+    acumulaMedida && habitoAcumulado
+      ? avisoOutraUnidade(resumirMedidas(medidas, habitoAcumulado.habito.id, unidade, { inicio: inicioAcum, fim: hoje }, hoje))
+      : null;
 
   const barrasAcum: BarraDoGrafico[] = useMemo(() => {
     if (!habitoAcumulado) return [];
+    const rotulo = (iv: { inicio: DataLocal }, i: number) =>
+      agrupar === 'semanas' ? dataCurta(iv.inicio) : NOMES_MESES[meses[i].mes - 1].slice(0, 3);
+    if (acumulaMedida) {
+      // Medida: período sem nenhuma anotação fica vazio ("—"), nunca zero.
+      const totais = totaisDeMedidaPorIntervalo(medidas, habitoAcumulado.habito.id, unidade, intervalosAcum, hoje);
+      return intervalosAcum.map((iv, i) => ({
+        rotulo: rotulo(iv, i),
+        valor: iv.inicio > hoje ? null : totais[i],
+        texto: formatarNumero(totais[i] ?? 0),
+      }));
+    }
     const r = resumosDosDias(entradas, habitoAcumulado.habito.id);
-    const intervalos = agrupar === 'semanas' ? semanas : meses.map(intervaloDoMes);
-    const totais = totaisPorIntervalo(r, intervalos, hoje);
-    return intervalos.map((iv, i) => ({
-      rotulo: agrupar === 'semanas' ? dataCurta(iv.inicio) : NOMES_MESES[meses[i].mes - 1].slice(0, 3),
+    const totais = totaisPorIntervalo(r, intervalosAcum, hoje);
+    return intervalosAcum.map((iv, i) => ({
+      rotulo: rotulo(iv, i),
       valor: iv.inicio > hoje ? null : totais[i],
       texto: `${formatarNumero(totais[i])}`,
     }));
-  }, [habitoAcumulado, entradas, agrupar, semanas, meses, hoje]);
+  }, [habitoAcumulado, acumulaMedida, medidas, unidade, entradas, agrupar, intervalosAcum, meses, hoje]);
   const maxAcum = Math.max(1, ...barrasAcum.map((b) => b.valor ?? 0));
 
   const diasDoAno = gradeAno.flat().filter((d): d is DataLocal => d !== null);
@@ -259,6 +288,7 @@ export default function Evolucao() {
                     barras={barrasAcum}
                     maximo={maxAcum}
                   />
+                  {avisoUnidade && <p className="text-[12px] text-texto2">{avisoUnidade}</p>}
                 </>
               )}
             </section>
