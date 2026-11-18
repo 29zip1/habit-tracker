@@ -21,15 +21,14 @@ interface Props {
   aoCancelar: () => void;
 }
 
-const campo = 'box-border h-12 w-full rounded-[14px] border-[1.5px] border-cinza-anel bg-cartao px-3 text-[16px] text-texto';
+const campo = 'caret-verde box-border h-12 w-full rounded-[14px] border-[1.5px] border-cinza-anel bg-cartao px-3 text-[16px] text-texto';
 
 /**
- * RF-85: ao entrar num campo, o cursor vai para o FIM do texto. O iPhone sobrescreve o
- * cursor enquanto o teclado abre e a janelinha se acomoda, então repete depois de
- * um instante (o que também faz o iPhone redesenhar o cursor dentro da caixa).
+ * RF-85: ao entrar num campo JÁ PREENCHIDO, o cursor vai para o FIM do texto, uma única
+ * vez, no quadro seguinte (o iPhone sobrescreve a posição colocada dentro do próprio
+ * foco). Campo vazio: não se mexe no cursor (forçar a seleção várias vezes fazia o
+ * iPhone deixar de desenhar a barrinha que pisca).
  */
-const ATRASOS_CURSOR_MS = [0, 120, 350, 650];
-
 /** RF-83 e RF-84: janelinha do lápis, só com os campos que o hábito tem ligados. Tudo opcional. */
 export function JanelaComplemento({
   titulo,
@@ -45,28 +44,18 @@ export function JanelaComplemento({
   const [observacao, setObservacao] = useState(observacaoInicial);
   const [erro, setErro] = useState('');
   const area = useAreaVisivel();
-  const timersCursor = useRef<number[]>([]);
+  const quadroCursor = useRef(0);
 
-  function limparCursor() {
-    timersCursor.current.forEach((t) => window.clearTimeout(t));
-    timersCursor.current = [];
-  }
-
-  useEffect(() => limparCursor, []);
+  useEffect(() => () => window.cancelAnimationFrame(quadroCursor.current), []);
 
   function cursorNoFim(campoEl: HTMLInputElement) {
-    limparCursor();
-    timersCursor.current = ATRASOS_CURSOR_MS.map((ms) =>
-      window.setTimeout(() => {
-        if (document.activeElement !== campoEl) return;
-        const fim = campoEl.value.length;
-        try {
-          campoEl.setSelectionRange(fim, fim);
-        } catch {
-          /* campo sem seleção: ignora */
-        }
-      }, ms),
-    );
+    if (campoEl.value.length === 0) return;
+    window.cancelAnimationFrame(quadroCursor.current);
+    quadroCursor.current = window.requestAnimationFrame(() => {
+      if (document.activeElement !== campoEl) return;
+      const fim = campoEl.value.length;
+      campoEl.setSelectionRange(fim, fim);
+    });
   }
 
   function salvar() {
@@ -109,7 +98,7 @@ export function JanelaComplemento({
                 value={medida}
                 placeholder="Ex.: 40"
                 onFocus={(e) => cursorNoFim(e.currentTarget)}
-                onPointerDown={limparCursor}
+                onPointerDown={() => window.cancelAnimationFrame(quadroCursor.current)}
                 onChange={(e) => {
                   setMedida(e.target.value);
                   setErro('');
@@ -131,7 +120,7 @@ export function JanelaComplemento({
               maxLength={LIMITE_OBSERVACAO}
               placeholder="Ex.: esteira, treino forte"
               onFocus={(e) => cursorNoFim(e.currentTarget)}
-              onPointerDown={limparCursor}
+              onPointerDown={() => window.cancelAnimationFrame(quadroCursor.current)}
               onChange={(e) => setObservacao(e.target.value.slice(0, LIMITE_OBSERVACAO))}
               className={campo}
             />
