@@ -24,7 +24,7 @@ export function useArquivosBackup(ativo = true): ArquivosBackup | null {
       const agora = new Date();
       const dados = await lerDadosDoBanco(db);
       const arquivo = await gerarBackup(db, __APP_VERSION__, agora);
-      const csv = gerarCsvRegistros(dados.habitos, dados.versoes, dados.registros, dados.marcacoes);
+      const csv = gerarCsvRegistros(dados.habitos, dados.versoes, dados.registros, dados.marcacoes, dados.medidas, dados.observacoes, dados.dias);
       return {
         backup: new File([serializarBackup(arquivo)], nomeArquivoBackup(agora), { type: 'application/json' }),
         csv: new File([csv], nomeArquivoBackup(agora, 'csv', 'habit-tracker-registros'), {
