@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAreaVisivel } from '../hooks/useAreaVisivel';
 import { numeroDoTexto } from '../services/habitos';
 import { LIMITE_OBSERVACAO } from '../types';
@@ -23,6 +23,13 @@ interface Props {
 
 const campo = 'box-border h-12 w-full rounded-[14px] border-[1.5px] border-cinza-anel bg-cartao px-3 text-[16px] text-texto';
 
+/**
+ * RF-85: ao entrar num campo, o cursor vai para o FIM do texto. O iPhone sobrescreve o
+ * cursor enquanto o teclado abre e a janelinha se acomoda, então repete depois de
+ * um instante (o que também faz o iPhone redesenhar o cursor dentro da caixa).
+ */
+const ATRASOS_CURSOR_MS = [0, 120, 350, 650];
+
 /** RF-83 e RF-84: janelinha do lápis, só com os campos que o hábito tem ligados. Tudo opcional. */
 export function JanelaComplemento({
   titulo,
@@ -38,6 +45,29 @@ export function JanelaComplemento({
   const [observacao, setObservacao] = useState(observacaoInicial);
   const [erro, setErro] = useState('');
   const area = useAreaVisivel();
+  const timersCursor = useRef<number[]>([]);
+
+  function limparCursor() {
+    timersCursor.current.forEach((t) => window.clearTimeout(t));
+    timersCursor.current = [];
+  }
+
+  useEffect(() => limparCursor, []);
+
+  function cursorNoFim(campoEl: HTMLInputElement) {
+    limparCursor();
+    timersCursor.current = ATRASOS_CURSOR_MS.map((ms) =>
+      window.setTimeout(() => {
+        if (document.activeElement !== campoEl) return;
+        const fim = campoEl.value.length;
+        try {
+          campoEl.setSelectionRange(fim, fim);
+        } catch {
+          /* campo sem seleção: ignora */
+        }
+      }, ms),
+    );
+  }
 
   function salvar() {
     let valor: number | null = null;
@@ -78,6 +108,8 @@ export function JanelaComplemento({
                 aria-label={`Medida em ${unidade}`}
                 value={medida}
                 placeholder="Ex.: 40"
+                onFocus={(e) => cursorNoFim(e.currentTarget)}
+                onPointerDown={limparCursor}
                 onChange={(e) => {
                   setMedida(e.target.value);
                   setErro('');
@@ -98,6 +130,8 @@ export function JanelaComplemento({
               value={observacao}
               maxLength={LIMITE_OBSERVACAO}
               placeholder="Ex.: esteira, treino forte"
+              onFocus={(e) => cursorNoFim(e.currentTarget)}
+              onPointerDown={limparCursor}
               onChange={(e) => setObservacao(e.target.value.slice(0, LIMITE_OBSERVACAO))}
               className={campo}
             />
