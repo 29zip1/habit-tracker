@@ -301,6 +301,124 @@ describe('RF-C5 e RF-C9 · semanal', () => {
   });
 });
 
+describe('RF-87 · semanal com meta batida sai do percentual e ganha auréola', () => {
+  // Semana de 09/11 (segunda) a 15/11 (domingo). Meta 3.
+  const SEG = '2026-11-09', TER = '2026-11-10', QUA = '2026-11-11', QUI = '2026-11-12';
+  const SEX = '2026-11-13', SAB = '2026-11-14', DOM = '2026-11-15', SEG2 = '2026-11-16';
+  const cardio = habito({ tipo: 'semanal', meta: 3 });
+  const outro = habito({ tipo: 'conclusao' });
+  const dia87 = (data: string, marcadas: string[], extra: Partial<EntradaDia> = {}) =>
+    calcularDia({
+      data, hoje: '2026-11-30', habitos: [cardio, outro], registros: [],
+      marcacoes: marcadas.map((d) => marca(cardio, d)), ...extra,
+    });
+  const c = (r: ReturnType<typeof dia87>) => r.habitos[0];
+
+  it('T-87a: meta batida seg/ter/qua; quinta fora do percentual, sem marcar', () => {
+    const r = dia87(QUI, [SEG, TER, QUA]);
+    expect(c(r).entraNoPercentual).toBe(false);
+    expect(r.totalNoPercentual).toBe(1);
+    expect(r.foraDoPercentual).toContain(cardio.habito.id);
+  });
+
+  it('T-87b: marcar a 4ª vez na quinta não muda o percentual', () => {
+    const sem = dia87(QUI, [SEG, TER, QUA], { marcacoes: [SEG, TER, QUA].map((d) => marca(cardio, d)).concat([marca(outro, QUI)]) });
+    const com = dia87(QUI, [SEG, TER, QUA, QUI], { marcacoes: [SEG, TER, QUA, QUI].map((d) => marca(cardio, d)).concat([marca(outro, QUI)]) });
+    expect(com.percentual).toBe(sem.percentual);
+    expect(com.concluidas).toBe(sem.concluidas);
+    expect(com.totalNoPercentual).toBe(sem.totalNoPercentual);
+  });
+
+  it('T-87c: com 2 marcações antes, quarta ainda conta (0 se não feito)', () => {
+    const r = dia87(QUA, [SEG, TER]);
+    expect(c(r).entraNoPercentual).toBe(true);
+    expect(c(r).fracao).toBe(0);
+  });
+
+  it('T-87d: o dia que bate a meta (3ª marcação) ainda conta, valendo 1', () => {
+    const r = dia87(QUA, [SEG, TER, QUA]);
+    expect(c(r).entraNoPercentual).toBe(true);
+    expect(c(r).fracao).toBe(1);
+  });
+
+  it('T-87e: desmarcar terça faz quinta voltar a entrar', () => {
+    expect(c(dia87(QUI, [SEG, QUA])).entraNoPercentual).toBe(true);
+  });
+
+  it('T-87f: semana seguinte volta a entrar', () => {
+    expect(c(dia87(SEG2, [SEG, TER, QUA, QUI])).entraNoPercentual).toBe(true);
+  });
+
+  it('T-87g: semana começando no domingo', () => {
+    // semana de dom 08/11 a sáb 14/11: marcas dom, seg, ter -> quarta já fora
+    const r = dia87(QUA, ['2026-11-08', SEG, TER], { inicioSemana: 0 });
+    expect(c(r).entraNoPercentual).toBe(false);
+  });
+
+  it('T-87h: único hábito já batido = descanso, sem percentual', () => {
+    const r = calcularDia({
+      data: QUI, hoje: '2026-11-30', habitos: [cardio], registros: [],
+      marcacoes: [SEG, TER, QUA].map((d) => marca(cardio, d)),
+    });
+    expect(r.estado).toBe('descanso');
+    expect(r.percentual).toBeNull();
+  });
+
+  it('T-87i: outros feitos e semanal batido não feito = completo, 100%', () => {
+    const r = dia87(QUI, [SEG, TER, QUA], { marcacoes: [SEG, TER, QUA].map((d) => marca(cardio, d)).concat([marca(outro, QUI)]) });
+    expect(r.estado).toBe('completo');
+    expect(r.percentual).toBe(100);
+  });
+
+  it('T-87j: com "entra no percentual" desligado, nunca entra', () => {
+    const off = habito({ tipo: 'semanal', meta: 3, entra: false });
+    const r = calcularDia({ data: TER, hoje: '2026-11-30', habitos: [off, outro], registros: [], marcacoes: [] });
+    expect(r.habitos[0].entraNoPercentual).toBe(false);
+  });
+
+  it('T-87k: conclusão, quantidade e limite não mudam', () => {
+    const q = habito({ tipo: 'quantidade', meta: 30 });
+    const l = habito({ tipo: 'limite', meta: 1500 });
+    const ms = [SEG, TER, QUA].map((d) => marca(outro, d));
+    const r = calcularDia({ data: QUI, hoje: '2026-11-30', habitos: [outro, q, l], registros: [], marcacoes: ms });
+    expect(r.habitos.every((x) => x.entraNoPercentual)).toBe(true);
+  });
+
+  it('T-87l: dia passado de semana antiga é recalculado, sem mexer nos registros', () => {
+    const marcacoes = [SEG, TER, QUA].map((d) => marca(cardio, d));
+    const antes = JSON.stringify(marcacoes);
+    const r = dia87(SEX, [SEG, TER, QUA], { hoje: SEG2, marcacoes });
+    expect(c(r).entraNoPercentual).toBe(false);
+    expect(JSON.stringify(marcacoes)).toBe(antes);
+  });
+
+  it('T-87p: 4 marcações; auréola de quinta em diante, marcado ou não; antes não', () => {
+    const m = [SEG, TER, QUA, QUI];
+    expect(c(dia87(QUA, m)).alemDaMeta).toBe(0);
+    for (const d of [QUI, SEX, SAB, DOM]) expect(c(dia87(d, m)).alemDaMeta, d).toBe(1);
+    expect(c(dia87(SEG2, m)).alemDaMeta).toBe(0);
+  });
+
+  it('T-87q: só 3 marcações, sem auréola', () => {
+    for (const d of [SEG, TER, QUA, QUI, SEX]) expect(c(dia87(d, [SEG, TER, QUA])).alemDaMeta, d).toBe(0);
+  });
+
+  it('T-87r: desmarcar a 4ª tira a auréola', () => {
+    expect(c(dia87(SEX, [SEG, TER, QUA])).alemDaMeta).toBe(0);
+  });
+
+  it('T-87s: 5 de 3 mostra +2 a partir do dia da 5ª', () => {
+    const m = [SEG, TER, QUA, QUI, SEX];
+    expect(c(dia87(QUI, m)).alemDaMeta).toBe(1);
+    expect(c(dia87(SEX, m)).alemDaMeta).toBe(2);
+    expect(c(dia87(SAB, m)).alemDaMeta).toBe(2);
+  });
+
+  it('auréola do semanal não entra na contagem de metas superadas', () => {
+    expect(dia87(QUI, [SEG, TER, QUA, QUI]).metasSuperadas).toBe(0);
+  });
+});
+
 describe('RF-C6 · estado do dia', () => {
   it('T-C6: dia sem nenhum registro = sem dados (não é falha)', () => {
     const cardio = habito({ tipo: 'quantidade', meta: 30 });

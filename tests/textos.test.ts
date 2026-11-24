@@ -74,6 +74,12 @@ describe('textos da tela Hoje', () => {
     expect(textoSemanal(6, 5)).toBe('Meta da semana batida · 5 de 5');
   });
 
+  it('T-87: texto semanal com marcações além da meta', () => {
+    expect(textoSemanal(4, 3, 1)).toBe('Meta da semana batida · 3 de 3 · +1 além da meta');
+    expect(textoSemanal(5, 3, 2)).toBe('Meta da semana batida · 3 de 3 · +2 além da meta');
+    expect(textoSemanal(3, 3, 0)).toBe('Meta da semana batida · 3 de 3');
+  });
+
   it('T-79a: o texto semanal nunca traz "hoje feito" nem "feito neste dia"', () => {
     for (const c of [0, 1, 2, 4]) expect(textoSemanal(c, 5)).not.toMatch(/feito/);
   });

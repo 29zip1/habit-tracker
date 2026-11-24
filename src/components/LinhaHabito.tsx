@@ -118,7 +118,7 @@ export function LinhaHabito({
   const temRegistros = quantidade || limite;
 
   const feito = quantidade ? r.metaBatida : limite ? r.limiteAtingido : r.marcadoNoDia;
-  const superada = quantidade && r.metaSuperada;
+  const superada = (quantidade && r.metaSuperada) || (semanal && r.alemDaMeta > 0); // RF-12 e RF-87
   const acimaDoLimite = limite && r.statusLimite === 'acima';
 
   let texto = '';
@@ -129,7 +129,7 @@ export function LinhaHabito({
     texto = textoConclusao(r.marcadoNoDia, ehHoje);
     temBarra = false;
   } else if (semanal) {
-    texto = textoSemanal(r.contagemSemana ?? 0, v.meta);
+    texto = textoSemanal(r.contagemSemana ?? 0, v.meta, r.alemDaMeta);
     verdePct = larguraBarraSemanal(r.contagemSemana ?? 0, v.meta, r.marcadoNoDia, ehHoje);
   } else if (quantidade) {
     texto = textoQuantidade(r.total, v.meta, v.unidade);

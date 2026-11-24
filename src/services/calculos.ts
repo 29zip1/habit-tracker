@@ -228,6 +228,11 @@ export function calcularDia(e: EntradaDia): ResumoDia {
       );
       r.contagemSemana = datasMarcadas.size;
       r.metaSemanaBatida = datasMarcadas.size >= v.meta;
+      // RF-87: só os dias anteriores e o próprio dia decidem; marcações de dias futuros não mudam este dia.
+      const antes = [...datasMarcadas].filter((d) => d < e.data).length;
+      const ate = antes + (marcado ? 1 : 0);
+      if (antes >= v.meta) r.entraNoPercentual = false; // meta já batida antes deste dia: sai da conta
+      if (ate > v.meta) r.alemDaMeta = ate - v.meta; // auréola e "+N além da meta" (não conta em metasSuperadas)
     }
     return r;
   });

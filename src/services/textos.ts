@@ -66,8 +66,11 @@ export function textoLimiteAtingido(total: number, unidade: string): string {
 }
 
 /** RF-79: o texto mostra só a contagem da semana (sem "hoje feito"). */
-export function textoSemanal(contagem: number, meta: number): string {
-  if (contagem >= meta) return `Meta da semana batida · ${meta} de ${meta}`;
+export function textoSemanal(contagem: number, meta: number, alemDaMeta = 0): string {
+  if (contagem >= meta) {
+    const base = `Meta da semana batida · ${meta} de ${meta}`;
+    return alemDaMeta > 0 ? `${base} · +${alemDaMeta} além da meta` : base; // RF-87
+  }
   return `${contagem} de ${meta} na semana`;
 }
 
